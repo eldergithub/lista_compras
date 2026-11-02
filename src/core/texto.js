@@ -13,7 +13,7 @@
  * 6 cx, "2 carne" vira 2 kg.
  */
 
-import { adivinharCategoria, categoriaCanonica, normalizar } from './categorias.js';
+import { adivinharCategoria, categoriaCanonica, normalizar, nomeValido } from './categorias.js';
 import { categoriasEmUso, criarItem, formatarQtd } from './lista.js';
 import { procurarNoCatalogo } from './catalogo.js';
 import { inicioDaObs, tamanhoDoModificador } from './observacoes.js';
@@ -247,7 +247,7 @@ export function lerEntrada(texto) {
     .replace(/\s*\bpr[oó]ximo( item)?\b\s*/gi, ', ');
   return falado.split(/\r?\n/).flatMap(separarItens)
     .flatMap((p) => segmentar(p) || [p])
-    .map(lerPedaco).filter(Boolean);
+    .map(lerPedaco).filter((i) => i && nomeValido(i.nome));
 }
 
 /** Um texto inteiro colado: aceita cabeçalhos de categoria ("*Açougue*", "Feira:"). */

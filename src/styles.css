@@ -345,3 +345,13 @@ li.faltou .caixa { border-style: dashed; }
 .parcial { min-height: 1.4em; font-style: italic; }
 .parcial:empty { display: none; }
 .mic-bt.ouvindo { border-color: var(--perigo); color: var(--perigo); }
+
+.grade-celula { position: relative; display: grid; }
+.grade-celula .grade-item.tem { padding-bottom: 10px; }
+.grade-celula .grade-qtd { min-height: 30px; display: flex; align-items: center; padding-right: 38px; }
+.grade-menos {
+  position: absolute; bottom: 6px; right: 6px; width: 34px; height: 30px; border-radius: 10px; display: grid; place-items: center;
+  border: 1px solid var(--destaque); background: var(--superficie); color: var(--destaque-forte); font: inherit; font-size: 1.3rem; font-weight: 700; line-height: 1; cursor: pointer;
+}
+.grade-menos:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
+.grade-menos::after { content: ""; position: absolute; inset: -6px; }

@@ -8,13 +8,14 @@
  * Funções puras: quem chama decide quando guardar.
  */
 
-import { normalizar } from './categorias.js';
+import { nomeValido, normalizar } from './categorias.js';
 import { sugerirDoCatalogo, CATALOGO } from './catalogo.js';
 
 /** Registra itens que entraram na lista. `contar` = false só atualiza a quantidade. */
 export function registrar(historico, itens, agora = Date.now(), contar = true) {
   const novo = { ...historico };
   for (const i of itens) {
+    if (!nomeValido(i.nome)) continue;
     const chave = normalizar(i.nome);
     const antes = novo[chave];
     novo[chave] = {
@@ -42,6 +43,7 @@ export function sugerir(historico, texto, limite = 6) {
   const alvo = normalizar(texto).trim();
   if (alvo.length < 2) return [];
   const proprias = Object.values(historico)
+    .filter((h) => nomeValido(h.nome))
     .filter((h) => normalizar(h.nome).split(/[ -]/).some((p) => p.startsWith(alvo)) || normalizar(h.nome).startsWith(alvo))
     .sort((a, b) => b.vezes - a.vezes || b.ultima - a.ultima);
   const vistos = new Set();
@@ -57,10 +59,12 @@ export function sugerir(historico, texto, limite = 6) {
 }
 
 /** Itens de sempre: comprados em 2 ou mais listas e que não estão na lista atual. */
-export function deSempre(historico, itensAtuais, limite = 12) {
+export function deSempre(historico, itensAtuais, limite = 12, categorias = null) {
   const naLista = new Set(itensAtuais.map((i) => normalizar(i.nome)));
   return Object.entries(historico)
-    .filter(([chave, h]) => h.vezes >= 2 && !naLista.has(chave))
+    .filter(([chave, h]) => h.vezes >= 2 && !naLista.has(chave) && nomeValido(h.nome))
+    // Numa lista de farmácia não aparece frango: só as categorias daquele tipo de lista.
+    .filter(([, h]) => !categorias || categorias.includes(h.cat))
     .map(([, h]) => h)
     .sort((a, b) => b.vezes - a.vezes || b.ultima - a.ultima)
     .slice(0, limite);
@@ -71,7 +75,7 @@ export function deSempre(historico, itensAtuais, limite = 12) {
  * vezes primeiro), depois o catálogo na ordem de sempre. Sem repetir.
  */
 export function gradeDaCategoria(historico, cat, limite = 24) {
-  const proprias = Object.values(historico).filter((h) => h.cat === cat).sort((a, b) => b.vezes - a.vezes || b.ultima - a.ultima);
+  const proprias = Object.values(historico).filter((h) => h.cat === cat && nomeValido(h.nome)).sort((a, b) => b.vezes - a.vezes || b.ultima - a.ultima);
   const vistos = new Set();
   const resultado = [];
   for (const s of [...proprias, ...CATALOGO.filter((c) => c.cat === cat)]) {

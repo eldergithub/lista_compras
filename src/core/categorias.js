@@ -80,3 +80,13 @@ export function categoriaCanonica(texto) {
   const alvo = normalizar(texto.trim());
   return CATEGORIAS.find((c) => normalizar(c) === alvo) || texto.trim();
 }
+
+// Palavras soltas que o microfone às vezes entrega e que não são item.
+const NAO_E_ITEM = new Set(['um', 'uma', 'dois', 'duas', 'e', 'de', 'do', 'da', 'tambem', 'mais', 'ai', 'depois', 'agora', 'entao',
+  'ne', 'ok', 'isso', 'item', 'itens', 'coloca', 'bota', 'poe', 'quero', 'preciso', 'com', 'sem', 'o', 'a', 'os', 'as']);
+
+/** Um nome que dá para ser item: tem letras e não é uma palavra de ligação solta. */
+export function nomeValido(nome) {
+  const n = normalizar(nome || '').trim();
+  return /[a-z]{2}/.test(n) && !NAO_E_ITEM.has(n);
+}

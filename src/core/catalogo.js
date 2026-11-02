@@ -27,7 +27,9 @@ const BRUTO = {
 export const CATALOGO = Object.entries(BRUTO).flatMap(([cat, texto]) =>
   texto.split(' ').reduce((acc, parte) => {
     // Os nomes têm espaço; o separador real é a maiúscula inicial de cada item.
-    if (acc.length && !/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(parte)) acc[acc.length - 1] += ' ' + parte;
+    // "Vitamina C" e "Lâmpada LED": letra solta ou sigla continuam o nome.
+    const continua = !/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(parte) || /^[A-Z]$/.test(parte) || /^[A-Z]{2,}$/.test(parte);
+    if (acc.length && continua) acc[acc.length - 1] += ' ' + parte;
     else acc.push(parte);
     return acc;
   }, []).map((entrada) => {

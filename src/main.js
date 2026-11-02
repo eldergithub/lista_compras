@@ -434,7 +434,7 @@ function atualizarPrevia() {
   sug.innerHTML = '';
   previa.innerHTML = '';
   if (!valor.trim()) {
-    const sempre = deSempre(historico, itens).slice(0, 10);
+    const sempre = deSempre(historico, itens, 10, catsDoTipo());
     sobe.hidden = !sempre.length || document.activeElement !== campo;
     if (!sempre.length) return;
     sug.innerHTML = `<span class="rotulo">De sempre</span>${sempre.map((h, n) => `<button class="chip" type="button" data-sempre="${n}">+ ${esc(h.nome)}</button>`).join('')}`;
@@ -480,7 +480,7 @@ function atualizarPrevia() {
 let categoriaDaGrade = null;
 function painelEscolher() {
   const rolagem = painelAtual === 'escolher' ? painel.scrollTop : 0;
-  const sempre = deSempre(historico, itens);
+  const sempre = deSempre(historico, itens, 12, catsDoTipo());
   const faltaNaLista = lista.ultima ? juntar(itens, lista.ultima).length - itens.length : 0;
   const cats = CATEGORIAS_POR_TIPO[lista.tipo] || CATEGORIAS_POR_TIPO.outros;
   if (!cats.includes(categoriaDaGrade)) categoriaDaGrade = cats[0];
@@ -496,7 +496,7 @@ function painelEscolher() {
     <div class="abas" role="tablist" aria-label="Categorias">${cats.map((c) => `<button type="button" role="tab" class="aba" aria-selected="${c === categoriaDaGrade}" data-aba="${esc(c)}">${esc(c)}</button>`).join('')}</div>
     <div class="grade" role="tabpanel" aria-label="${esc(categoriaDaGrade)}">${grade.map((g, n) => {
       const ja = naLista.get(g.nome.toLowerCase());
-      return `<button type="button" class="grade-item${ja ? ' tem' : ''}" data-grade="${n}"><span>${esc(g.nome)}</span>${ja ? `<span class="grade-qtd">${ja.qtd != null ? formatarQtd(ja) : '✓'}</span>` : ''}</button>`;
+      return `<div class="grade-celula"><button type="button" class="grade-item${ja ? ' tem' : ''}" data-grade="${n}" aria-label="${esc(g.nome)}${ja ? `, na lista${ja.qtd != null ? `: ${formatarQtd(ja)}` : ''}. Toque para somar` : ''}"><span>${esc(g.nome)}</span>${ja ? `<span class="grade-qtd">${ja.qtd != null ? formatarQtd(ja) : '✓ na lista'}</span>` : ''}</button>${ja ? `<button type="button" class="grade-menos" data-menos="${n}" aria-label="Diminuir ou tirar ${esc(g.nome)}">−</button>` : ''}</div>`;
     }).join('')}</div>
     <p class="obs">Um toque põe na lista; outro toque soma mais.</p>
     <button class="btn primario grande" data-fechar type="button">Pronto · ${plural(itens.length, 'item', 'itens')} na lista</button>`, 'escolher');
@@ -518,6 +518,25 @@ function painelEscolher() {
   });
   painel.querySelectorAll('[data-aba]').forEach((b) => { b.onclick = () => { categoriaDaGrade = b.dataset.aba; painelEscolher(); }; });
   painel.querySelectorAll('[data-grade]').forEach((b) => { b.onclick = () => tocarNaGrade(grade[Number(b.dataset.grade)]); });
+  painel.querySelectorAll('[data-menos]').forEach((b) => { b.onclick = () => menosNaGrade(grade[Number(b.dataset.menos)]); });
+}
+
+/** Categorias que fazem sentido para o tipo da lista aberta (null = todas). */
+const catsDoTipo = () => (lista.tipo === 'outros' ? null : CATEGORIAS_POR_TIPO[lista.tipo] || null);
+
+/** O − da grade: tira um passo da quantidade; sem quantidade (ou no último passo), tira o item da lista. */
+function menosNaGrade(g) {
+  const ja = itens.find((i) => i.nome.toLowerCase() === g.nome.toLowerCase());
+  if (!ja) return;
+  const passo = PASSO[ja.un] || 1;
+  if (ja.qtd != null && ja.qtd - passo > 0.0001) {
+    marcarParaDesfazer();
+    ja.qtd -= passo;
+    guardar(); desenhar();
+    aviso(`${ja.nome}: ${formatarQtd(ja)}`, true);
+    return;
+  }
+  removerItem(ja);
 }
 
 /** Grade: o primeiro toque põe o item na lista; os seguintes somam um passo da unidade. */

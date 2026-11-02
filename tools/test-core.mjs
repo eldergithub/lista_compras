@@ -355,5 +355,15 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   ok(separarPendente('seis leites sem').pendente === 'sem', '"sem" no fim espera a observação');
 }
 
+{
+  ok(procurarNoCatalogo('vitamina c')?.nome === 'Vitamina C' && procurarNoCatalogo('lâmpada led')?.nome === 'Lâmpada LED', 'catálogo: "Vitamina C" e "Lâmpada LED" inteiros');
+  ok(!procurarNoCatalogo('c'), 'letra solta não é item do catálogo');
+  ok(lerEntrada('2').length === 0 && lerEntrada('também').length === 0 && lerEntrada('uma').length === 0, 'número ou palavra solta não vira item');
+  const h = registrar({}, [criarItem('2', 'Outros'), criarItem('Também', 'Outros'), criarItem('Pão', 'Padaria')]);
+  ok(Object.keys(h).length === 1, 'histórico ignora itens sem nome de verdade');
+  const h2 = registrar(registrar({}, [criarItem('Frango', 'Açougue'), criarItem('Dipirona', 'Farmácia')]), [criarItem('Frango', 'Açougue'), criarItem('Dipirona', 'Farmácia')]);
+  ok(deSempre(h2, [], 12, CATEGORIAS_POR_TIPO.farmacia).map((x) => x.nome).join() === 'Dipirona', 'de sempre só do tipo da lista');
+}
+
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);
 if (falhou) process.exit(1);
