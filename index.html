@@ -39,28 +39,28 @@
         <span id="contagem"></span>
         <div class="icones">
           <button class="icone-bt" id="bEnviar" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 15V3M7.5 7.5L12 3l4.5 4.5"/></svg><span>Enviar</span></button>
-          <button class="icone-bt so-icone" id="bMais" type="button" aria-label="Mais opções"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+          <button class="icone-bt so-icone" id="bMais" type="button" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
         </div>
       </div>
       <div class="barra"><span id="barra"></span></div>
       <button class="gasto" id="gasto" type="button" hidden></button>
+      <div class="barra-add" id="barraAdd">
+        <form class="entrada" id="fNovo" autocomplete="off">
+          <input class="texto" id="nTexto" placeholder="Adicionar item…" enterkeyhint="enter" autocapitalize="sentences" aria-label="Adicionar item">
+          <button class="redondo" id="nMic" type="button" aria-label="Falar os itens"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+          <button class="redondo" id="nEscolher" type="button" aria-label="Escolher itens: listas prontas e categorias"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg></button>
+          <button class="redondo cheio" id="nEnviar" type="submit" aria-label="Adicionar item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        </form>
+        <div class="sobe" id="sobe" hidden>
+          <ul class="previa" id="nPrevia" hidden></ul>
+          <div class="chips rolar" id="nSug" aria-label="Sugestões"></div>
+        </div>
+      </div>
       <div class="faixa" id="faixa" hidden></div>
     </header>
     <main id="lista"></main>
     <div class="tudo" id="tudo"></div>
     <button class="limpar" id="limpar" type="button"></button>
-  </div>
-  <div class="barra-add" id="barraAdd">
-    <div class="sobe" id="sobe" hidden>
-      <ul class="previa" id="nPrevia" hidden></ul>
-      <div class="chips rolar" id="nSug" aria-label="Sugestões"></div>
-    </div>
-    <form class="entrada" id="fNovo" autocomplete="off">
-      <input class="texto" id="nTexto" placeholder="Adicionar item…" enterkeyhint="enter" autocapitalize="sentences" aria-label="Adicionar item">
-      <button class="redondo" id="nMic" type="button" aria-label="Falar os itens"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
-      <button class="redondo" id="nEscolher" type="button" aria-label="Escolher itens: listas prontas e categorias"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg></button>
-      <button class="redondo cheio" id="nEnviar" type="submit" aria-label="Adicionar item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
-    </form>
   </div>
   <div class="fundo" id="fundo"><div class="painel" id="painel" role="dialog" aria-modal="true"></div></div>
   <div class="aviso" id="aviso" role="status"></div>

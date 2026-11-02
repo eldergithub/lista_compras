@@ -92,6 +92,7 @@ painelUmaCompra = navegavel(painelUmaCompra);
 painelBackup = navegavel(painelBackup);
 painelSugestoes = navegavel(painelSugestoes);
 painelTema = navegavel(painelTema);
+confirmar = navegavel(confirmar);
 painelSalvarPronta = navegavel(painelSalvarPronta);
 painelRenomearPronta = navegavel(painelRenomearPronta);
 
@@ -129,12 +130,12 @@ function desenhar() {
   const quadro = $('lista');
   quadro.innerHTML = '';
   if (!itens.length) {
-    quadro.innerHTML = '<div class="vazio"><p><b>A lista está vazia.</b><br>Escreva ou fale na barra aqui embaixo, ou comece por uma lista pronta.</p><button class="btn primario grande" id="vProntas" type="button">Começar com uma lista pronta</button></div>';
+    quadro.innerHTML = '<div class="vazio"><p><b>A lista está vazia.</b><br>Escreva ou fale na barra aqui em cima, ou comece por uma lista pronta.</p><button class="btn primario grande" id="vProntas" type="button">Começar com uma lista pronta</button></div>';
   } else if (!lerMarca(DICA_GESTOS)) {
     const d = document.createElement('div');
     d.className = 'dica-gestos';
     d.innerHTML = `<b>Como usar a lista</b>
-      <ul><li>Toque no <b>+</b> lá embaixo para pôr item, ou no microfone para falar.</li><li>Toque na <b>caixinha</b> para marcar.</li><li>Toque no <b>nome</b> para observação, preço e mais.</li><li>Toque na <b>quantidade</b> para mudar.</li><li><b>Arraste</b> o item para o lado para tirar.</li></ul>
+      <ul><li>Escreva na barra de cima e toque no <b>+</b>, ou use o microfone para falar.</li><li>Toque na <b>caixinha</b> para marcar.</li><li>Toque no <b>nome</b> para observação, preço e mais.</li><li>Toque na <b>quantidade</b> para mudar.</li><li><b>Arraste</b> o item para o lado para tirar.</li></ul>
       <button class="btn" id="dgOk" type="button">Entendi</button>`;
     quadro.appendChild(d);
     $('dgOk').onclick = () => { gravarMarca(DICA_GESTOS); d.remove(); };
@@ -658,7 +659,7 @@ function painelDitado() {
         'not-allowed': 'O microfone está bloqueado. Libere o microfone para o NaLista nas permissões do navegador.',
         'service-not-allowed': 'O microfone está bloqueado. Libere o microfone para o NaLista nas permissões do navegador.',
         'audio-capture': 'Não encontrei o microfone do aparelho.',
-        network: 'Falar precisa de internet. Sem sinal, use o microfone do teclado na barra de baixo.',
+        network: 'Falar precisa de internet. Sem sinal, use o microfone do teclado na barra de adicionar.',
       }[e.error];
       if (motivo) { querOuvir = false; estado(motivo, false); }
       // "no-speech" é só silêncio: o onend religa.
@@ -805,28 +806,29 @@ async function manterTelaAcesa() {
 }
 document.addEventListener('visibilitychange', manterTelaAcesa);
 
-/** Botão do fim da lista: zera as marcas para a próxima compra (dois toques). */
+/** Botão do fim da lista: zera as marcas para a próxima compra (com confirmação). */
 const bLimpar = $('limpar');
-let prazo;
 function rearmarLimpar() {
-  clearTimeout(prazo);
-  bLimpar.classList.remove('armado');
   bLimpar.textContent = 'Começar nova compra';
   bLimpar.hidden = !itens.some(resolvido);
 }
-bLimpar.onclick = () => {
-  if (!bLimpar.classList.contains('armado')) {
-    bLimpar.classList.add('armado');
-    bLimpar.textContent = 'Toque de novo para zerar as marcas';
-    prazo = setTimeout(rearmarLimpar, 3000);
-    return;
-  }
-  marcarParaDesfazer();
-  itens = novaCompra(itens);
-  lista.compraRegistrada = false;
-  guardar(); desenhar(); window.scrollTo({ top: 0 });
-  aviso('Marcas e preços zerados', true);
-};
+function confirmarNovaCompra() {
+  const r = resumoDaCompra(itens);
+  confirmar({
+    titulo: 'Começar nova compra?',
+    texto: `Os ${plural(itens.length, 'item', 'itens')} de <b>${esc(lista.nome)}</b> continuam na lista. Saem só as marcas${r.comPreco ? ', os preços' : ''}${r.faltaram ? ' e os "não tinha"' : ''}.${lista.compraRegistrada ? ' Esta compra já está guardada em Compras anteriores.' : ''}`,
+    acao: 'Zerar as marcas',
+    perigo: false,
+    aoConfirmar: () => {
+      marcarParaDesfazer();
+      itens = novaCompra(itens);
+      lista.compraRegistrada = false;
+      guardar(); fecharPainel(); desenhar(); window.scrollTo({ top: 0 });
+      aviso('Pronto para a próxima compra', true);
+    },
+  });
+}
+bLimpar.onclick = confirmarNovaCompra;
 
 // ---------------------------------------------------------------- tema
 const TEMAS = { sistema: 'Automático', claro: 'Claro', escuro: 'Escuro' };
@@ -857,25 +859,61 @@ function painelTema() {
 }
 
 /** Menu ⋯: o que é usado de vez em quando. */
+/**
+ * Menu ⋯ (opções e configurações), em três blocos: o que mexe na lista
+ * aberta, de onde trazer itens, e o app em si. O tema troca ali mesmo.
+ */
+const ICONE = {
+  orcamento: '<path d="M4 7h16v12H4z"/><path d="M4 11h16M8 15h3"/>',
+  pronta: '<path d="M6 3h9l3 3v15H6z"/><path d="M9 11l2 2 4-4M9 17h6"/>',
+  repetir: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/>',
+  zerar: '<path d="M5 12.5l4.5 4.5L19 7.5"/><path d="M3 21h18"/>',
+  esvaziar: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
+  importar: '<path d="M12 3v12M7.5 10.5L12 15l4.5-4.5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
+  prontas: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/>',
+  compras: '<path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/>',
+  sugestoes: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/>',
+  backup: '<path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.6 1.5A3.8 3.8 0 0 1 17.5 18z"/><path d="M12 11v6M9.5 13.5L12 11l2.5 2.5"/>',
+  ajuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/>',
+};
+const icone = (n) => `<svg class="icone-op" viewBox="0 0 24 24" aria-hidden="true">${ICONE[n]}</svg>`;
+
 function painelMais() {
   const faltaNaLista = lista.ultima ? juntar(itens, lista.ultima).length - itens.length : 0;
-  const opcao = (id, titulo, desc) => `<li><button type="button" class="lista-linha" id="${id}"><span class="nome">${titulo}<small>${desc}</small></span></button></li>`;
-  abrirPainel(`<h3>Mais opções</h3>
-    <ul class="listas">
-      ${opcao('mImportar', 'Importar uma lista', 'Cole o link ou o texto que você recebeu')}
-      ${opcao('mProntas', 'Listas prontas', prontas.length ? `${plural(prontas.length, 'sua', 'suas')} e as do app` : 'Mês, feira, churrasco, farmácia e outras')}
-      ${itens.length ? opcao('mSalvarPronta', 'Salvar como lista pronta', `Guarda os itens de ${esc(lista.nome)} para usar de novo`) : ''}
-      ${faltaNaLista > 0 ? opcao('mRepetir', 'Repetir a última compra', `${plural(faltaNaLista, 'item volta', 'itens voltam')} para ${esc(lista.nome)}`) : ''}
-      ${opcao('mOrcamento', 'Orçamento', orcamento ? `Até ${formatarPreco(orcamento)}` : 'Avisa quando o total passar do valor')}
-      ${itens.some(resolvido) ? opcao('mZerar', 'Começar nova compra', 'Zera as marcas e os preços, mantém os itens') : ''}
-      ${itens.length ? opcao('mEsvaziar', 'Esvaziar a lista', `Tira os ${plural(itens.length, 'item', 'itens')} de ${esc(lista.nome)}`) : ''}
-      ${opcao('mCompras', 'Compras anteriores', 'O que foi pego, o que faltou e quanto deu')}
-      ${opcao('mBackup', 'Backup', 'Salvar ou restaurar tudo num arquivo')}
-      ${opcao('mSugestoes', 'Sugestões', 'Tirar o que aparece no "de sempre" e na grade sem fazer sentido')}
-      ${opcao('mTema', 'Tema', TEMAS[lerTema()] + (lerTema() === 'sistema' ? ', segue o celular' : ''))}
-      ${opcao('mDica', 'Como usar', 'Mostra de novo as dicas da lista')}
+  const opcao = (id, ic, titulo, desc, extra = '') => `<li><button type="button" class="opcao${extra}" id="${id}">${icone(ic)}<span class="nome">${titulo}<small>${desc}</small></span><svg class="seta-op" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>`;
+  const tema = lerTema();
+  abrirPainel(`<h3>Menu</h3>
+    <h4 class="sub">Lista ${esc(lista.nome)}</h4>
+    <ul class="listas menu">
+      ${opcao('mOrcamento', 'orcamento', 'Orçamento', orcamento ? `Até ${formatarPreco(orcamento)}` : 'Avisa quando o total passar do valor')}
+      ${itens.length ? opcao('mSalvarPronta', 'pronta', 'Salvar como lista pronta', 'Para montar uma igual depois') : ''}
+      ${faltaNaLista > 0 ? opcao('mRepetir', 'repetir', 'Repetir a última compra', `${plural(faltaNaLista, 'item volta', 'itens voltam')} para a lista`) : ''}
+      ${itens.some(resolvido) ? opcao('mZerar', 'zerar', 'Começar nova compra', 'Tira as marcas e os preços, mantém os itens') : ''}
+      ${itens.length ? opcao('mEsvaziar', 'esvaziar', 'Esvaziar a lista', `Tira os ${plural(itens.length, 'item', 'itens')}`, ' perigo') : ''}
+    </ul>
+    <h4 class="sub">Trazer itens</h4>
+    <ul class="listas menu">
+      ${opcao('mImportar', 'importar', 'Importar', 'Colar um link ou texto que você recebeu')}
+      ${opcao('mProntas', 'prontas', 'Listas prontas', prontas.length ? `${plural(prontas.length, 'sua', 'suas')} e as do app` : 'Mês, feira, churrasco, farmácia e outras')}
+      ${opcao('mCompras', 'compras', 'Compras anteriores', compras.length ? `${plural(compras.length, 'compra', 'compras')} · repetir ou ver o que faltou` : 'O que foi pego, o que faltou e quanto deu')}
+    </ul>
+    <h4 class="sub">App</h4>
+    <span class="rotulo-tema" id="rotuloTema">Tema</span>
+    <div class="tema-linha" role="radiogroup" aria-labelledby="rotuloTema">
+      ${Object.entries(TEMAS).map(([id, nome]) => `<label class="tema-op"><input type="radio" name="tema" value="${id}" ${id === tema ? 'checked' : ''}><span class="amostra amostra-${id}" aria-hidden="true"></span>${nome}</label>`).join('')}
+    </div>
+    <ul class="listas menu">
+      ${opcao('mSugestoes', 'sugestoes', 'Sugestões', 'Tirar o que aparece sem fazer sentido')}
+      ${opcao('mBackup', 'backup', 'Backup', 'Guardar tudo num arquivo ou levar para outro celular')}
+      ${opcao('mDica', 'ajuda', 'Como usar', 'Mostra de novo as dicas da lista')}
     </ul>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
+  painel.querySelectorAll('input[name=tema]').forEach((r) => {
+    r.onchange = () => {
+      try { if (r.value === 'sistema') localStorage.removeItem('nalista-tema'); else localStorage.setItem('nalista-tema', r.value); } catch { /* ok */ }
+      aplicarTema(r.value);
+    };
+  });
   $('mImportar').onclick = painelImportar;
   $('mProntas').onclick = painelModelos;
   if ($('mSalvarPronta')) $('mSalvarPronta').onclick = () => painelSalvarPronta();
@@ -887,24 +925,23 @@ function painelMais() {
     aviso(`${plural(itens.length - antes, 'item voltou', 'itens voltaram')} da última compra`, true);
   };
   $('mOrcamento').onclick = painelOrcamento;
-  if ($('mZerar')) $('mZerar').onclick = () => {
-    marcarParaDesfazer(); itens = novaCompra(itens); lista.compraRegistrada = false;
-    guardar(); fecharPainel(); desenhar(); aviso('Marcas e preços zerados', true);
-  };
+  if ($('mZerar')) $('mZerar').onclick = confirmarNovaCompra;
   if ($('mEsvaziar')) {
-    const b = $('mEsvaziar');
-    b.onclick = () => {
-      if (!b.classList.contains('armado')) { b.classList.add('armado'); b.querySelector('small').textContent = 'Toque de novo para confirmar'; return; }
-      marcarParaDesfazer();
-      lista.ultima = novaCompra(itens);
-      itens = []; lista.compraRegistrada = false;
-      guardar(); fecharPainel(); desenhar(); aviso('Lista esvaziada', true);
-    };
+    $('mEsvaziar').onclick = () => confirmar({
+      titulo: `Esvaziar ${esc(lista.nome)}?`,
+      texto: `Os ${plural(itens.length, 'item', 'itens')} saem da lista. A lista continua existindo, e dá para trazer estes itens de volta depois em <b>Repetir a última compra</b>.`,
+      acao: `Tirar os ${plural(itens.length, 'item', 'itens')}`,
+      aoConfirmar: () => {
+        marcarParaDesfazer();
+        lista.ultima = novaCompra(itens);
+        itens = []; lista.compraRegistrada = false;
+        guardar(); fecharPainel(); desenhar(); aviso('Lista esvaziada', true);
+      },
+    });
   }
   $('mCompras').onclick = painelCompras;
   $('mBackup').onclick = painelBackup;
   $('mSugestoes').onclick = () => painelSugestoes();
-  $('mTema').onclick = () => painelTema();
   $('mDica').onclick = () => { try { localStorage.removeItem(DICA_GESTOS); } catch { /* ok */ } fecharPainel(); desenhar(); window.scrollTo({ top: 0 }); };
 }
 $('bMais').onclick = painelMais;
@@ -997,9 +1034,35 @@ function fecharPainel() {
   sincronizarHistorico();
 }
 /** "Voltar" de dentro do painel: o mesmo que o botão voltar do aparelho. */
-function voltarPainel() {
-  if (pilha.length > 1 && noHistorico > 0) history.back();
-  else fecharPainel();
+function voltarPainel(n) {
+  // Usado direto como onclick: o evento chega no lugar do número.
+  const niveis = typeof n === 'number' ? n : 1;
+  if (pilha.length <= niveis) { fecharPainel(); return; }
+  pilha.splice(pilha.length - niveis, niveis);
+  while (pilha.length && !pilha[pilha.length - 1].reabrir) pilha.pop();
+  if (!pilha.length) { fecharPainel(); return; }
+  restaurando = true;
+  try { pilha[pilha.length - 1].reabrir(); } finally { restaurando = false; }
+  sincronizarHistorico();
+}
+
+/**
+ * Confirmação de algo que apaga ou zera: diz o que vai acontecer, com o
+ * botão da ação em vermelho e "Cancelar" (ou o voltar do aparelho) ao lado.
+ * `aoConfirmar` faz a ação e decide para onde o painel vai depois.
+ */
+function confirmar({ titulo, texto, acao, aoConfirmar, perigo = true }) {
+  abrirPainel(`<div class="confirmacao">
+      <span class="icone-confirmar${perigo ? ' perigo' : ''}" aria-hidden="true">${perigo
+        ? '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>'
+        : '<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/></svg>'}</span>
+      <h3>${titulo}</h3>
+      <p>${texto}</p>
+    </div>
+    <button class="btn grande ${perigo ? 'perigo-cheio' : 'primario'}" id="cfSim" type="button">${acao}</button>
+    <button class="btn grande" id="cfNao" type="button">Cancelar</button>`);
+  $('cfNao').onclick = () => voltarPainel();
+  $('cfSim').onclick = aoConfirmar;
 }
 fundo.addEventListener('click', (e) => { if (e.target === fundo) fecharPainel(); });
 addEventListener('keydown', (e) => { if (e.key === 'Escape' && fundo.classList.contains('aberto')) voltarPainel(); });
@@ -1384,14 +1447,17 @@ function painelModelo(m) {
   };
   if (propria) {
     $('mRenomear').onclick = () => painelRenomearPronta(m);
-    const apagar = $('mApagar');
-    apagar.onclick = () => {
-      if (!apagar.classList.contains('armado')) { apagar.classList.add('armado'); apagar.textContent = 'Toque de novo'; return; }
-      const antes = prontas;
-      prontas = apagarPronta(prontas, m.id); salvarProntas(prontas);
-      voltarPainel();
-      aviso(`Lista pronta ${m.nome} apagada`, true, () => { prontas = antes; salvarProntas(prontas); if (fundo.classList.contains('aberto') && pilha[pilha.length - 1]?.reabrir) pilha[pilha.length - 1].reabrir(); });
-    };
+    $('mApagar').onclick = () => confirmar({
+      titulo: `Apagar a lista pronta ${esc(m.nome)}?`,
+      texto: `Ela some das suas listas prontas. As suas listas e os itens que já estão nelas não mudam.`,
+      acao: 'Apagar lista pronta',
+      aoConfirmar: () => {
+        const antes = prontas;
+        prontas = apagarPronta(prontas, m.id); salvarProntas(prontas);
+        voltarPainel(2); // sai da confirmação e da lista pronta apagada
+        aviso(`Lista pronta ${m.nome} apagada`, true, () => { prontas = antes; salvarProntas(prontas); if (fundo.classList.contains('aberto') && pilha[pilha.length - 1]?.reabrir) pilha[pilha.length - 1].reabrir(); });
+      },
+    });
   }
   atualizar();
 }
@@ -1473,29 +1539,33 @@ function painelListas() {
       <button class="btn" id="lEditar" type="button">Renomear ${esc(lista.nome)}</button>
       ${estado.listas.length > 1 ? '<button class="btn perigo" id="lApagar" type="button">Apagar</button>' : ''}
     </div>
-    <div class="fileira">
-      <button class="btn" id="lCompras" type="button">Compras anteriores</button>
-      <button class="btn" id="lBackup" type="button">Backup</button>
-    </div>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
   painel.querySelectorAll('[data-lista]').forEach((b) => {
     b.onclick = () => { fecharPainel(); if (b.dataset.lista !== lista.id) trocarPara(b.dataset.lista); };
   });
   $('lNova').onclick = () => painelDaLista(null);
   $('lEditar').onclick = () => painelDaLista(lista);
-  $('lCompras').onclick = painelCompras;
-  $('lBackup').onclick = painelBackup;
   const apagar = $('lApagar');
   if (apagar) {
-    apagar.onclick = () => {
-      if (!apagar.classList.contains('armado')) { apagar.classList.add('armado'); apagar.textContent = 'Toque de novo'; return; }
-      const nome = lista.nome;
-      estado.listas = estado.listas.filter((l) => l !== lista);
-      estado.ativa = listasPorUso(estado)[0].id;
-      lista = listaAtiva(estado); itens = lista.itens;
-      salvarListas(estado); fecharPainel(); desenhar();
-      aviso(`Lista ${nome} apagada`);
-    };
+    apagar.onclick = () => confirmar({
+      titulo: `Apagar a lista ${esc(lista.nome)}?`,
+      texto: `A lista e ${itens.length ? `os ${plural(itens.length, 'item', 'itens')} dela` : 'tudo dela'} somem deste celular. Quem recebeu a lista pelo link continua com a cópia. As compras anteriores ficam guardadas.`,
+      acao: 'Apagar lista',
+      aoConfirmar: () => {
+        guardar();
+        const antes = { listas: estado.listas, ativa: estado.ativa };
+        const nome = lista.nome;
+        estado.listas = estado.listas.filter((l) => l !== lista);
+        estado.ativa = listasPorUso(estado)[0].id;
+        lista = listaAtiva(estado); itens = lista.itens;
+        salvarListas(estado); fecharPainel(); desenhar();
+        aviso(`Lista ${nome} apagada`, true, () => {
+          estado.listas = antes.listas; estado.ativa = antes.ativa;
+          lista = listaAtiva(estado); itens = lista.itens;
+          salvarListas(estado); desenhar();
+        });
+      },
+    });
   }
 }
 
@@ -1650,6 +1720,12 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   });
   addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
 }
+
+// O cabeçalho fixo cresce com a barra de adicionar: o item que acabou de entrar não fica escondido atrás dele.
+const topo = document.querySelector('header');
+const medirTopo = () => document.documentElement.style.setProperty('--altura-topo', `${topo.offsetHeight}px`);
+if ('ResizeObserver' in window) new ResizeObserver(medirTopo).observe(topo);
+medirTopo();
 
 // ---------------------------------------------------------------- início
 montarBarra();

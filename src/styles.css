@@ -398,3 +398,49 @@ li.faltou .caixa { border-style: dashed; }
 .amostra-claro { background: #f3f5f1; }
 .amostra-escuro { background: #121614; }
 .amostra-sistema { background: linear-gradient(135deg, #f3f5f1 50%, #121614 50%); }
+
+/* Confirmação */
+.confirmacao { display: grid; justify-items: center; text-align: center; gap: 10px; padding: 8px 4px 4px; }
+.confirmacao p { max-width: 34ch; }
+.icone-confirmar { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--destaque-leve); color: var(--destaque-forte); }
+.icone-confirmar.perigo { background: color-mix(in srgb, var(--perigo) 14%, transparent); color: var(--perigo); }
+.icone-confirmar svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.btn.perigo-cheio { background: var(--perigo); border-color: var(--perigo); color: #fff; }
+:root[data-tema="escuro"] .btn.perigo-cheio { color: #1a0d09; }
+@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .btn.perigo-cheio { color: #1a0d09; } }
+
+/* Menu ⋯ */
+.menu .opcao {
+  width: 100%; display: flex; align-items: center; gap: 14px; padding: 10px 12px 10px 14px; min-height: 60px; border: 0; background: transparent;
+  color: var(--texto); font: inherit; text-align: left; cursor: pointer;
+}
+.menu .opcao .nome { flex: 1; min-width: 0; font-weight: 700; }
+.menu .opcao small { display: block; font-weight: 400; color: var(--suave); font-size: .85rem; margin-top: 1px; }
+.icone-op { flex: none; width: 22px; height: 22px; fill: none; stroke: var(--destaque-forte); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.seta-op { flex: none; width: 18px; height: 18px; fill: none; stroke: var(--linha-forte); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.menu .opcao.perigo .nome, .menu .opcao.perigo .icone-op { color: var(--perigo); stroke: var(--perigo); }
+.menu .opcao:focus-visible { outline: 3px solid var(--destaque); outline-offset: -3px; }
+.tema-linha { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.tema-op {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: 12px; border: 1px solid var(--linha-forte);
+  background: var(--superficie); font-weight: 700; font-size: .85rem; cursor: pointer;
+}
+.tema-op .amostra { width: 26px; height: 26px; }
+.tema-op input { position: absolute; opacity: 0; pointer-events: none; }
+.tema-op:has(input:checked) { border: 2px solid var(--destaque); background: var(--destaque-leve); }
+.tema-op:has(input:focus-visible) { outline: 3px solid var(--destaque); outline-offset: 2px; }
+.rotulo-tema { font-weight: 700; font-size: .9rem; color: var(--suave); margin-bottom: -4px; }
+
+/* Barra de adicionar no topo, dentro do cabeçalho fixo */
+body { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.barra-add { position: relative; left: auto; right: auto; bottom: auto; z-index: 6; background: transparent; border: 0; padding: 0; }
+.barra-add > * { max-width: none; }
+.sobe {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; margin: 0; padding: 10px; border-radius: 14px;
+  background: var(--superficie); border: 1px solid var(--linha-forte); box-shadow: 0 10px 28px rgba(0, 0, 0, .18); max-height: 50vh;
+}
+.aviso { bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
+li.item, .dica-gestos { scroll-margin-top: calc(var(--altura-topo, 200px) + 12px); }
+header { grid-template-columns: minmax(0, 1fr); }
+.barra-add, .entrada { min-width: 0; }
+.entrada .texto { width: 100%; }
