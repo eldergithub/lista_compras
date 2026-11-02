@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3f5f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121614" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Compras">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="description" content="Lista de compras para o celular: monte, envie por link e marque no mercado, mesmo sem internet.">
+  <title>Lista de Compras</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Lista de Compras</h1>
+      <div class="meta"><span id="contagem"></span><span id="dica">Toque para marcar</span></div>
+      <div class="barra"><span id="barra"></span></div>
+      <div class="acoes">
+        <button class="btn" id="bEditar" type="button">Editar</button>
+        <button class="btn" id="bEnviar" type="button">Enviar</button>
+        <button class="btn" id="bImportar" type="button">Importar</button>
+      </div>
+      <div class="faixa" id="faixa" hidden></div>
+    </header>
+    <div id="adicionar"></div>
+    <main id="lista"></main>
+    <div class="tudo" id="tudo">Tudo no carrinho. Boa compra!</div>
+    <button class="limpar" id="limpar" type="button"></button>
+  </div>
+  <div class="fundo" id="fundo"><div class="painel" id="painel" role="dialog" aria-modal="true"></div></div>
+  <div class="aviso" id="aviso" role="status"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

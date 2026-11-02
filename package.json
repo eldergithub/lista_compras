@@ -1,0 +1,21 @@
+{
+  "name": "lista-compras",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Lista de compras offline para celular: monte, envie por link e marque no mercado",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node tools/gen-sw.mjs",
+    "preview": "vite preview",
+    "test": "node tools/test-core.mjs"
+  },
+  "dependencies": {
+    "@fontsource/atkinson-hyperlegible": "^5.3.0",
+    "@fontsource/bricolage-grotesque": "^5.3.0",
+    "qrcode-generator": "^2.0.4"
+  },
+  "devDependencies": {
+    "vite": "^8.3.0"
+  }
+}
