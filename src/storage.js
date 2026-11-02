@@ -32,3 +32,7 @@ export const salvarHistorico = (h) => gravar(HISTORICO, h);
 /** A última compra: a lista como estava quando foi concluída ou apagada. */
 export const carregarUltima = () => ler(ULTIMA, null);
 export const salvarUltima = (itens) => gravar(ULTIMA, itens);
+
+const ORCAMENTO = 'lista-compras-orcamento-v1';
+export const carregarOrcamento = () => { const v = ler(ORCAMENTO, null); return typeof v === 'number' && v > 0 ? v : null; };
+export const salvarOrcamento = (v) => gravar(ORCAMENTO, v);

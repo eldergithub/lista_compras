@@ -13,7 +13,11 @@ import { paraTexto, lerTexto, lerEntrada, separarItens, lerPedaco } from './core
 import { montarLink, decodificar, codigoDoEndereco } from './core/link.js';
 import { registrar, doHistorico, sugerir, deSempre } from './core/historico.js';
 import {
+  ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra, resolvido,
+} from './core/compra.js';
+import {
   carregar, salvar, carregarHistorico, salvarHistorico, carregarUltima, salvarUltima,
+  carregarOrcamento, salvarOrcamento,
 } from './storage.js';
 
 // ---------------------------------------------------------------- estado
@@ -21,6 +25,7 @@ let itens = carregar() || LISTA_INICIAL;
 let historico = carregarHistorico();
 let ultima = carregarUltima();
 let editando = false;
+let orcamento = carregarOrcamento();
 const guardar = () => salvar(itens);
 const copiaDe = (lista) => lista.map((i) => ({ ...i }));
 
@@ -65,10 +70,12 @@ function desenhar() {
       ? '<p class="vazio">Escreva ou fale os itens na caixa acima.</p>'
       : '<p class="vazio">Lista vazia. Toque em <b>Editar</b> para montar a lista ou em <b>Importar</b> para colar uma.</p>';
   }
-  for (const cat of categoriasEmUso(itens)) {
-    const doGrupo = itens.filter((i) => i.cat === cat);
+  const grupos = editando
+    ? categoriasEmUso(itens).map((cat) => [cat, itens.filter((i) => i.cat === cat)])
+    : ordenarParaCompra(itens);
+  for (const [cat, doGrupo] of grupos) {
     const sec = document.createElement('section');
-    const contagem = editando ? doGrupo.length : `${doGrupo.filter((i) => i.feito).length}/${doGrupo.length}`;
+    const contagem = editando ? doGrupo.length : `${doGrupo.filter(resolvido).length}/${doGrupo.length}`;
     sec.innerHTML = `<h2><span>${esc(cat)}</span><span>${contagem}</span></h2>`;
     const ul = document.createElement('ul');
     for (const item of doGrupo) ul.appendChild(editando ? linhaEdicao(item) : linhaCompra(item));
@@ -79,8 +86,8 @@ function desenhar() {
   atualizarContagem();
   $('bEditar').textContent = editando ? 'Pronto' : 'Editar';
   $('bEditar').classList.toggle('primario', editando);
-  $('dica').textContent = editando ? 'Toque no nome para detalhes' : 'Toque para marcar';
   rearmarLimpar();
+  manterTelaAcesa();
 }
 
 const textoNome = (item) => `${esc(item.nome)}${item.obs ? `<small>${esc(item.obs)}</small>` : ''}`;
@@ -88,14 +95,72 @@ const textoNome = (item) => `${esc(item.nome)}${item.obs ? `<small>${esc(item.ob
 function linhaCompra(item) {
   const li = document.createElement('li');
   const q = formatarQtd(item);
-  li.innerHTML = `<label class="linha"><input type="checkbox" ${item.feito ? 'checked' : ''}><span class="caixa">${MARCA}</span><span class="nome">${textoNome(item)}</span>${q ? `<span class="qtd">${q}</span>` : ''}</label>`;
+  const preco = typeof item.preco === 'number' ? formatarPreco(item.preco) : '';
+  if (item.faltou && !item.feito) li.className = 'faltou';
+  li.innerHTML = `<div class="linha-compra"><label class="linha"><input type="checkbox" ${item.feito ? 'checked' : ''}><span class="caixa">${MARCA}</span><span class="nome">${textoNome(item)}</span>${q ? `<span class="qtd">${q}</span>` : ''}${li.className ? '<span class="tag-faltou">não tinha</span>' : ''}</label><button class="preco-bt${preco ? ' tem' : ''}" type="button" aria-label="Preço ou não tinha: ${esc(item.nome)}">${preco || 'R$'}</button></div>`;
   li.querySelector('input').addEventListener('change', (e) => {
-    item.feito = e.target.checked; guardar(); atualizarContagem();
-    const g = itens.filter((i) => i.cat === item.cat);
-    e.target.closest('section').querySelector('h2 span:last-child').textContent = `${g.filter((i) => i.feito).length}/${g.length}`;
+    if (item.faltou && !item.feito) { item.faltou = false; e.target.checked = false; }
+    else { item.feito = e.target.checked; if (item.feito) item.faltou = false; }
+    guardar(); atualizarContagem();
+    // Dá tempo de ver a marca antes de o item descer para o fim da categoria.
+    clearTimeout(linhaCompra.t);
+    linhaCompra.t = setTimeout(desenhar, 350);
   });
+  li.querySelector('.preco-bt').onclick = () => painelDoItemNaCompra(item);
   return li;
 }
+
+/** Preço do item e "não tinha", na hora da compra. */
+function painelDoItemNaCompra(item) {
+  const q = formatarQtd(item);
+  const valor = typeof item.preco === 'number' ? String(item.preco.toFixed(2)).replace('.', ',') : '';
+  abrirPainel(`<h3>${esc(item.nome)}${q ? ` <span class="cinza">${q}</span>` : ''}</h3>
+    <label class="campo">Quanto deu este item?<input class="texto preco-campo" id="pValor" inputmode="decimal" placeholder="R$ 0,00" value="${valor}" autocomplete="off"></label>
+    <p>Use o valor total do item, o que aparece na etiqueta ou na balança.</p>
+    <button class="btn primario grande" id="pPego" type="button">Salvar e marcar como pego</button>
+    <div class="fileira">
+      <button class="btn" id="pFaltou" type="button">${item.faltou && !item.feito ? 'Achei, tinha sim' : 'Não tinha'}</button>
+      ${typeof item.preco === 'number' ? '<button class="btn" id="pLimpar" type="button">Tirar o preço</button>' : ''}
+    </div>
+    <button class="btn discreto" data-fechar type="button">Cancelar</button>`);
+  const campo = $('pValor');
+  setTimeout(() => campo.focus(), 50);
+  const salvarPego = () => {
+    const preco = lerPreco(campo.value);
+    if (campo.value.trim() && preco == null) { aviso('Valor inválido'); campo.focus(); return; }
+    if (preco != null) item.preco = preco; else delete item.preco;
+    item.feito = true; item.faltou = false;
+    guardar(); fecharPainel(); desenhar();
+  };
+  $('pPego').onclick = salvarPego;
+  campo.addEventListener('keydown', (e) => { if (e.key === 'Enter') salvarPego(); });
+  $('pFaltou').onclick = () => {
+    if (item.faltou && !item.feito) item.faltou = false;
+    else { item.faltou = true; item.feito = false; delete item.preco; }
+    guardar(); fecharPainel(); desenhar();
+  };
+  if ($('pLimpar')) $('pLimpar').onclick = () => { delete item.preco; guardar(); fecharPainel(); desenhar(); };
+}
+
+function painelOrcamento() {
+  const valor = orcamento ? String(orcamento.toFixed(2)).replace('.', ',') : '';
+  abrirPainel(`<h3>Orçamento da compra</h3>
+    <p>O total fica em destaque quando passar do valor.</p>
+    <label class="campo">Quanto pretende gastar?<input class="texto preco-campo" id="oValor" inputmode="decimal" placeholder="R$ 0,00" value="${valor}" autocomplete="off"></label>
+    <div class="fileira">
+      <button class="btn primario" id="oSalvar" type="button">Salvar</button>
+      ${orcamento ? '<button class="btn" id="oTirar" type="button">Sem orçamento</button>' : ''}
+    </div>
+    <button class="btn discreto" data-fechar type="button">Cancelar</button>`);
+  const definir = (v) => { orcamento = v; salvarOrcamento(v); fecharPainel(); atualizarContagem(); };
+  $('oSalvar').onclick = () => {
+    const v = lerPreco($('oValor').value);
+    if (!v) { aviso('Digite um valor'); return; }
+    definir(v);
+  };
+  if ($('oTirar')) $('oTirar').onclick = () => definir(null);
+}
+$('gasto').onclick = painelOrcamento;
 
 function linhaEdicao(item) {
   const li = document.createElement('li');
@@ -198,7 +263,7 @@ function desenharMontagem() {
     $('nRepetir').onclick = () => {
       marcarParaDesfazer();
       const antes = itens.length;
-      itens = juntar(itens, ultima.map((i) => ({ ...i, feito: false })));
+      itens = juntar(itens, novaCompra(ultima));
       guardar(); desenhar();
       aviso(`${plural(itens.length - antes, 'item voltou', 'itens voltaram')} da última compra`, true);
     };
@@ -276,23 +341,61 @@ function editarItem(item) {
 
 // ---------------------------------------------------------------- contagem e limpar
 function atualizarContagem() {
-  const total = itens.length, feitos = itens.filter((i) => i.feito).length;
+  const r = resumoDaCompra(itens);
   $('contagem').innerHTML = editando
-    ? `<b>${total}</b> ${total === 1 ? 'item' : 'itens'} na lista`
-    : `<b>${feitos}</b> de ${total} no carrinho`;
-  $('barra').style.width = total ? `${(feitos / total) * 100}%` : '0';
-  const concluida = !editando && total > 0 && feitos === total;
-  $('tudo').classList.toggle('mostrar', concluida);
-  // Compra concluída vira a "última compra", que dá para repetir depois.
-  if (concluida) { ultima = copiaDe(itens); salvarUltima(ultima); }
+    ? `<b>${r.total}</b> ${r.total === 1 ? 'item' : 'itens'} na lista`
+    : `<b>${r.pegos}</b> de ${r.total} no carrinho${r.faltaram ? ` · ${r.faltaram} não tinha` : ''}`;
+  // A dica some quando a compra começa, para a contagem caber numa linha.
+  $('dica').textContent = editando ? 'Toque no nome para detalhes' : (r.resolvidos ? '' : 'Toque para marcar');
+  $('barra').style.width = r.total && !editando ? `${(r.resolvidos / r.total) * 100}%` : '0';
+
+  // Total gasto e orçamento: só na hora da compra.
+  const gasto = $('gasto');
+  gasto.hidden = editando || !r.total;
+  const passou = orcamento && r.gasto > orcamento;
+  gasto.classList.toggle('passou', !!passou);
+  gasto.innerHTML = r.comPreco || orcamento
+    ? `Total <b>${formatarPreco(r.gasto)}</b>${orcamento ? ` <span class="cinza">de ${formatarPreco(orcamento)}</span>` : ''}${passou ? ' · passou do orçamento' : ''}`
+    : 'Toque em <b>R$</b> no item para anotar o preço · <u>orçamento</u>';
+
+  const concluida = !editando && r.total > 0 && r.resolvidos === r.total;
+  const tudo = $('tudo');
+  tudo.classList.toggle('mostrar', concluida);
+  if (concluida) {
+    const partes = [`${plural(r.pegos, 'item pego', 'itens pegos')}`];
+    if (r.faltaram) partes.push(`${r.faltaram} não tinha`);
+    if (r.comPreco) partes.push(`total ${formatarPreco(r.gasto)}`);
+    tudo.innerHTML = `Compra concluída. Boa!<span>${partes.join(' · ')}</span>`;
+    // Compra concluída vira a "última compra", que dá para repetir depois.
+    ultima = novaCompra(itens); salvarUltima(ultima);
+  }
 }
+
+/**
+ * Tela acesa enquanto há itens para pegar: ninguém quer desbloquear o
+ * celular a cada corredor. O navegador solta sozinho ao sair do app.
+ */
+let travaDaTela = null;
+async function manterTelaAcesa() {
+  const precisa = !editando && document.visibilityState === 'visible' && itens.some((i) => !resolvido(i));
+  if (!('wakeLock' in navigator)) return;
+  if (precisa && !travaDaTela) {
+    try {
+      travaDaTela = await navigator.wakeLock.request('screen');
+      travaDaTela.addEventListener('release', () => { travaDaTela = null; });
+    } catch { travaDaTela = null; }
+  } else if (!precisa && travaDaTela) {
+    travaDaTela.release().catch(() => {}); travaDaTela = null;
+  }
+}
+document.addEventListener('visibilitychange', manterTelaAcesa);
 
 const bLimpar = $('limpar');
 let prazo;
 function rearmarLimpar() {
   clearTimeout(prazo);
   bLimpar.classList.remove('armado');
-  bLimpar.textContent = editando ? 'Apagar a lista inteira' : 'Desmarcar tudo';
+  bLimpar.textContent = editando ? 'Apagar a lista inteira' : 'Começar nova compra';
   bLimpar.hidden = !itens.length;
 }
 bLimpar.onclick = () => {
@@ -304,13 +407,13 @@ bLimpar.onclick = () => {
   }
   marcarParaDesfazer();
   if (editando) {
-    ultima = copiaDe(itens); salvarUltima(ultima);
+    ultima = novaCompra(itens); salvarUltima(ultima);
     itens = [];
   } else {
-    itens.forEach((i) => { i.feito = false; });
+    itens = novaCompra(itens);
   }
   guardar(); desenhar();
-  aviso(editando ? 'Lista apagada' : 'Tudo desmarcado', true);
+  aviso(editando ? 'Lista apagada' : 'Marcas e preços zerados', true);
 };
 
 $('bEditar').onclick = () => { editando = !editando; desenhar(); window.scrollTo({ top: 0 }); };
@@ -345,7 +448,7 @@ async function compartilhar(dados, reserva) {
 // ---------------------------------------------------------------- enviar
 $('bEnviar').onclick = async () => {
   if (!itens.length) { aviso('A lista está vazia'); return; }
-  const link = await montarLink(itens.map((i) => ({ ...i, feito: false })), location.href);
+  const link = await montarLink(novaCompra(itens), location.href);
   const texto = paraTexto(itens);
   abrirPainel(`<h3>Enviar a lista</h3>
     <p>Quem receber toca no link e a lista abre pronta no celular, com ${plural(itens.length, 'item', 'itens')}.</p>

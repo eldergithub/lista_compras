@@ -149,3 +149,25 @@ textarea {
 .aviso.com-acao { pointer-events: auto; }
 .aviso button { font: inherit; font-weight: 700; color: var(--destaque-leve); background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; }
 @media (prefers-color-scheme: dark) { .aviso button { color: var(--destaque); } }
+
+/* Fase 4: hora da compra */
+.linha-compra { display: flex; align-items: stretch; }
+.linha-compra .linha { flex: 1; min-width: 0; padding-right: 8px; }
+.preco-bt {
+  flex: none; min-width: 64px; margin: 8px 10px 8px 0; padding: 0 10px; border-radius: 10px;
+  border: 1px dashed var(--linha); background: transparent; color: var(--suave);
+  font: inherit; font-size: .9rem; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.preco-bt.tem { border-style: solid; color: var(--texto); }
+li.faltou .nome { color: var(--feito); text-decoration: line-through dashed; }
+li.faltou .qtd { background: transparent; color: var(--feito); }
+li.faltou .caixa { border-style: dashed; }
+.tag-faltou { font-size: .78rem; font-weight: 700; color: var(--perigo); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.gasto {
+  justify-self: start; font: inherit; font-size: .95rem; color: var(--suave); background: none; border: 0; padding: 2px 0; cursor: pointer; text-align: left;
+}
+.gasto b { color: var(--texto); font-variant-numeric: tabular-nums; }
+.gasto.passou, .gasto.passou b { color: var(--perigo); font-weight: 700; }
+.gasto[hidden] { display: none; }
+.tudo span { display: block; font-weight: 400; color: var(--suave); margin-top: 4px; }
+.preco-campo { font-size: 1.4rem !important; height: 56px !important; font-variant-numeric: tabular-nums; }

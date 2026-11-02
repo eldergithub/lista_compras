@@ -8,6 +8,7 @@ import { criarItem, juntar, adicionarItens, LISTA_INICIAL, formatarQtd } from '.
 import { paraTexto, lerTexto, lerEntrada, separarItens } from '../src/core/texto.js';
 import { procurarNoCatalogo, sugerirDoCatalogo } from '../src/core/catalogo.js';
 import { registrar, sugerir, deSempre } from '../src/core/historico.js';
+import { ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra } from '../src/core/compra.js';
 import { codificar, decodificar, montarLink, codigoDoEndereco } from '../src/core/link.js';
 
 let passou = 0, falhou = 0;
@@ -113,6 +114,25 @@ ok(h.leite.vezes === 2 && h.leite.qtd === 6, 'histórico conta vezes e guarda a 
 ok(sugerir(h, 'lei')[0].nome === 'Leite' && sugerir(h, 'lei')[0].doHistorico, 'o que já comprou vem primeiro');
 ok(deSempre(h, []).map((x) => x.nome).join() === 'Leite', 'itens de sempre: 2 ou mais vezes');
 ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram o que já está na lista');
+
+// Hora da compra
+{
+  const c = [
+    { ...criarItem('Pão', 'Padaria'), feito: true, preco: 8.5 },
+    { ...criarItem('Carne', 'Açougue', 1, 'kg'), feito: true, preco: 42.9 },
+    { ...criarItem('Frango', 'Açougue', 1, 'kg') },
+    { ...criarItem('Gorgonzola', 'Frios e laticínios'), faltou: true },
+    { ...criarItem('Leite', 'Frios e laticínios', 6, 'cx') },
+  ];
+  const ordem = ordenarParaCompra(c).map(([cat, l]) => cat + ':' + l.map((i) => i.nome).join('+'));
+  ok(igual(ordem, ['Açougue:Frango+Carne', 'Frios e laticínios:Leite+Gorgonzola', 'Padaria:Pão']), 'pendentes em cima e categorias resolvidas no fim');
+  const r = resumoDaCompra(c);
+  ok(r.pegos === 2 && r.faltaram === 1 && r.resolvidos === 3 && r.gasto === 51.4 && r.comPreco === 2, 'resumo da compra');
+  ok(lerPreco('12,90') === 12.9 && lerPreco('R$ 1.234,50') === 1234.5 && lerPreco('7.5') === 7.5 && lerPreco('') === null && lerPreco('abc') === null, 'lê preço em vários formatos');
+  ok(formatarPreco(51.4) === 'R$ 51,40', 'formata em reais');
+  const nova = novaCompra(c);
+  ok(nova.every((i) => !i.feito && !i.faltou && i.preco === undefined) && nova[1].qtd === 1, 'nova compra limpa marcas e preços');
+}
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);
 if (falhou) process.exit(1);
