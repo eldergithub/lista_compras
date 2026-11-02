@@ -77,7 +77,13 @@ function guardar(requisicao, resposta) {
  * ou falhar, entrega o que estiver guardado — o app abre igual, offline ou
  * numa conexão ruim, e nunca fica numa tela em branco esperando.
  */
-async function redePrimeiro(requisicao) {
+async function redePrimeiro(original) {
+  // O servidor nunca precisa do que vem depois do `?`. É ali que chega o texto
+  // compartilhado com o NaLista (`?text=…`, do menu Compartilhar do Android):
+  // sem isto, a lista ia parar nos registros de acesso da hospedagem. A página
+  // continua lendo o endereço completo do próprio navegador.
+  const url = new URL(original.url);
+  const requisicao = new Request(url.origin + url.pathname);
   try {
     const resposta = await Promise.race([
       // `no-cache` nao desliga o cache: obriga a perguntar ao servidor se
