@@ -92,6 +92,7 @@ painelUmaCompra = navegavel(painelUmaCompra);
 painelBackup = navegavel(painelBackup);
 painelSugestoes = navegavel(painelSugestoes);
 painelTema = navegavel(painelTema);
+painelFoto = navegavel(painelFoto);
 confirmar = navegavel(confirmar);
 painelSalvarPronta = navegavel(painelSalvarPronta);
 painelRenomearPronta = navegavel(painelRenomearPronta);
@@ -499,6 +500,7 @@ function painelEscolher() {
   abrirPainel(`<h3>Escolher itens</h3>
     <div class="atalhos-linha">
       <button class="btn" id="eProntas" type="button">Listas prontas</button>
+      <button class="btn" id="eFoto" type="button">De uma foto</button>
       ${faltaNaLista > 0 ? `<button class="btn" id="eRepetir" type="button">Repetir a última <span class="cinza">(+${faltaNaLista})</span></button>` : ''}
     </div>
     ${sempre.length ? `<h4 class="sub sub-acao"><span>De sempre</span><button type="button" class="link" id="eAjustar">Ajustar</button></h4><div class="chips">${sempre.map((h, n) => `<button class="chip" type="button" data-sempre="${n}">+ ${esc(h.nome)}${h.qtd != null ? ` <span class="cinza">${formatarNumero(h.qtd)} ${esc(h.un)}</span>` : ''}</button>`).join('')}</div>` : ''}
@@ -514,6 +516,7 @@ function painelEscolher() {
   const abaAtual = painel.querySelector('.aba[aria-selected="true"]');
   if (abaAtual) abaAtual.parentElement.scrollLeft = abaAtual.offsetLeft - abaAtual.parentElement.offsetLeft - 16;
   $('eProntas').onclick = painelModelos;
+  $('eFoto').onclick = () => painelFoto();
   if ($('eAjustar')) $('eAjustar').onclick = () => painelSugestoes();
   if ($('eRepetir')) {
     $('eRepetir').onclick = () => {
@@ -707,6 +710,37 @@ function painelDitado() {
   ligar();
 }
 
+// ---------------------------------------------------------------- lista de uma foto
+/**
+ * Lista escrita à mão ou impressa: o Google Lens (ou o Texto ao Vivo do
+ * iPhone) lê a foto e manda o texto para o NaLista, que separa os itens.
+ * Nada sai do aparelho por conta do app.
+ */
+function painelFoto() {
+  const android = /android/i.test(navigator.userAgent);
+  abrirPainel(`<h3>Lista de uma foto</h3>
+    <p>Funciona com lista escrita à mão ou impressa.${android ? ' O Google Lens lê a foto e manda o texto para cá.' : ' O próprio iPhone lê o texto da foto.'}</p>
+    <ol class="passos">
+      ${android
+        ? `<li>Abra o <b>Google Lens</b> (ou a câmera) e aponte para a lista.</li>
+      <li>Toque em <b>Texto</b> e em <b>Selecionar tudo</b>.</li>
+      <li>Toque em <b>Compartilhar</b> e escolha <b>NaLista</b>. Se ele não aparecer, toque em <b>Copiar</b> e volte aqui.</li>`
+        : `<li>Abra a <b>Câmera</b> e aponte para a lista.</li>
+      <li>Toque no ícone de <b>texto</b> no canto da foto e em <b>Selecionar tudo</b>.</li>
+      <li>Toque em <b>Copiar</b> e volte aqui.</li>`}
+      <li>Confira os itens que eu encontrar e tire o que saiu errado.</li>
+    </ol>
+    <button class="btn primario grande" id="fColar" type="button">Já copiei: colar o texto</button>
+    <button class="btn discreto" id="fVoltar" type="button">Voltar</button>`);
+  $('fVoltar').onclick = voltarPainel;
+  $('fColar').onclick = async () => {
+    let texto = '';
+    try { texto = await navigator.clipboard.readText(); } catch { /* sem permissão: cola à mão */ }
+    if (texto && (await receber(texto, 'texto'))) return;
+    painelImportar(texto ? 'Não achei itens no que foi copiado. Confira o texto abaixo.' : 'Cole aqui o texto que você copiou da foto.');
+  };
+}
+
 // ---------------------------------------------------------------- sugestões
 /**
  * O que o app aprendeu com as listas (histórico): aparece no "de sempre",
@@ -874,6 +908,7 @@ const ICONE = {
   compras: '<path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/>',
   sugestoes: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/>',
   backup: '<path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.6 1.5A3.8 3.8 0 0 1 17.5 18z"/><path d="M12 11v6M9.5 13.5L12 11l2.5 2.5"/>',
+  foto: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
   ajuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/>',
 };
 const icone = (n) => `<svg class="icone-op" viewBox="0 0 24 24" aria-hidden="true">${ICONE[n]}</svg>`;
@@ -893,6 +928,7 @@ function painelMais() {
     </ul>
     <h4 class="sub">Trazer itens</h4>
     <ul class="listas menu">
+      ${opcao('mFoto', 'foto', 'Lista de uma foto', 'Escrita à mão ou impressa, pelo Google Lens')}
       ${opcao('mImportar', 'importar', 'Importar', 'Colar um link ou texto que você recebeu')}
       ${opcao('mProntas', 'prontas', 'Listas prontas', prontas.length ? `${plural(prontas.length, 'sua', 'suas')} e as do app` : 'Mês, feira, churrasco, farmácia e outras')}
       ${opcao('mCompras', 'compras', 'Compras anteriores', compras.length ? `${plural(compras.length, 'compra', 'compras')} · repetir ou ver o que faltou` : 'O que foi pego, o que faltou e quanto deu')}
@@ -914,7 +950,8 @@ function painelMais() {
       aplicarTema(r.value);
     };
   });
-  $('mImportar').onclick = painelImportar;
+  $('mImportar').onclick = () => painelImportar();
+  $('mFoto').onclick = () => painelFoto();
   $('mProntas').onclick = painelModelos;
   if ($('mSalvarPronta')) $('mSalvarPronta').onclick = () => painelSalvarPronta();
   if ($('mRepetir')) $('mRepetir').onclick = () => {
@@ -1178,34 +1215,64 @@ function painelRecebida(novos, origem, meta) {
   // A mesma lista chegando de novo (já ligada a uma daqui) é um complemento: só entra o que mudou.
   if (meta?.uid && estado.listas.some((l) => (l.uids || []).includes(meta.uid))) { painelComplemento(novos, meta, true); return; }
   const n = novos.length;
-  const nomes = novos.slice(0, 8).map((i) => esc(i.nome) + (i.qtd != null ? ` <span class="cinza">${formatarQtd(i)}</span>` : '')).join(', ');
-  const resto = n > 8 ? ` e mais ${n - 8}` : '';
   const tipo = meta?.tipo in TIPOS ? meta.tipo : 'outros';
-  const nomeNovo = meta?.nome || 'Lista recebida';
+  const nomeNovo = meta?.nome || (origem === 'link' ? 'Lista recebida' : 'Lista lida');
   const atualVazia = !itens.length;
-  abrirPainel(`<h3>${origem === 'link' ? 'Chegou uma lista para você' : 'Lista encontrada'}</h3>
+  // Texto colado ou compartilhado (do Google Lens, de uma foto, do WhatsApp) pode vir com erro de leitura:
+  // a pessoa confere e tira o que saiu errado antes de entrar.
+  const conferir = origem !== 'link';
+  const escolhidos = new Set(novos.map((_, k) => k));
+  const selecao = () => novos.filter((_, k) => escolhidos.has(k)).map((i) => ({ ...i }));
+  const nomes = novos.slice(0, 8).map((i) => esc(i.nome) + (i.qtd != null ? ` <span class="cinza">${formatarQtd(i)}</span>` : '')).join(', ') + (n > 8 ? ` e mais ${n - 8}` : '');
+  abrirPainel(`<h3>${origem === 'link' ? 'Chegou uma lista para você' : `Encontrei ${plural(n, 'item', 'itens')}`}</h3>
     ${meta ? `<p class="tag-lista">${iconeTipo(tipo)}<b>${esc(meta.nome)}</b></p>` : ''}
-    <p><b>${plural(n, 'item', 'itens')}:</b> ${nomes}${resto}.</p>
+    ${conferir
+      ? `<p>Confira o que foi lido. Toque para tirar o que saiu errado; o resto você ajusta depois na lista.</p>
+    <div class="chips modelo">${novos.map((i, k) => `<button type="button" class="chip escolha" data-k="${k}" aria-pressed="true">${esc(i.nome)}${i.qtd != null ? ` <span class="cinza">${formatarQtd(i)}</span>` : ''}${i.obs ? ` <span class="cinza">(${esc(i.obs)})</span>` : ''}</button>`).join('')}</div>`
+      : `<p><b>${plural(n, 'item', 'itens')}:</b> ${nomes}.</p>`}
     ${atualVazia
-      ? `<button class="btn primario grande" id="rAqui" type="button">Usar esta lista</button>`
-      : `<button class="btn primario grande" id="rNova" type="button">Abrir como lista nova</button>
+      ? '<button class="btn primario grande" id="rAqui" type="button">Usar esta lista</button>'
+      : conferir
+        ? `<button class="btn primario grande" id="rJuntar" type="button">Pôr em ${esc(lista.nome)}</button>
+    <div class="fileira">
+      <button class="btn" id="rNova" type="button">Lista nova</button>
+      <button class="btn" id="rTrocar" type="button">Substituir ${esc(lista.nome)}</button>
+    </div>`
+        : `<button class="btn primario grande" id="rNova" type="button">Abrir como lista nova</button>
     <div class="fileira">
       <button class="btn" id="rJuntar" type="button">Juntar à ${esc(lista.nome)}</button>
       <button class="btn" id="rTrocar" type="button">Substituir ${esc(lista.nome)}</button>
     </div>`}
     <button class="btn discreto" data-fechar type="button">Agora não</button>`);
+  const acoes = ['rAqui', 'rNova', 'rJuntar', 'rTrocar'].map($).filter(Boolean);
+  const contar = () => {
+    const k = escolhidos.size;
+    acoes.forEach((b) => { b.disabled = !k; });
+    if ($('rJuntar') && conferir) $('rJuntar').textContent = k ? `Pôr ${plural(k, 'item', 'itens')} em ${lista.nome}` : 'Escolha pelo menos um item';
+    if ($('rAqui') && conferir) $('rAqui').textContent = k ? `Usar ${plural(k, 'item', 'itens')}` : 'Escolha pelo menos um item';
+  };
+  painel.querySelectorAll('[data-k]').forEach((b) => {
+    b.onclick = () => {
+      const k = Number(b.dataset.k);
+      if (escolhidos.has(k)) escolhidos.delete(k); else escolhidos.add(k);
+      b.setAttribute('aria-pressed', String(escolhidos.has(k)));
+      contar();
+    };
+  });
+  contar();
   const terminar = (msg, podeDesfazer = true) => { guardar(); fecharPainel(); desenhar(); aviso(msg, podeDesfazer); };
   if ($('rAqui')) {
     $('rAqui').onclick = () => {
       marcarParaDesfazer();
-      itens = novos; lista.compraRegistrada = false;
+      itens = selecao(); lista.compraRegistrada = false;
       if (meta) { lista.nome = nomeLivre({ listas: estado.listas.filter((l) => l !== lista) }, meta.nome); lista.tipo = tipo; ligar(lista, meta.uid); }
-      terminar('Lista recebida');
+      lembrar(itens);
+      terminar(conferir ? plural(itens.length, 'item entrou', 'itens entraram') : 'Lista recebida');
     };
     return;
   }
   $('rNova').onclick = () => {
-    const nova = criarLista(nomeLivre(estado, nomeNovo), tipo, novos);
+    const nova = criarLista(nomeLivre(estado, nomeNovo), tipo, selecao());
     // A cópia recebida usa a mesma identidade da original: os complementos de
     // qualquer um dos dois lados acham a lista certa.
     if (meta?.uid) nova.uid = meta.uid;
@@ -1216,8 +1283,13 @@ function painelRecebida(novos, origem, meta) {
     antesDeDesfazer = null;
     terminar(`Lista ${nova.nome} criada`, false);
   };
-  $('rJuntar').onclick = () => { marcarParaDesfazer(); itens = complementar(itens, novos).itens; ligar(lista, meta?.uid); lista.compraRegistrada = false; terminar('Listas juntadas'); };
-  $('rTrocar').onclick = () => { marcarParaDesfazer(); itens = novos; ligar(lista, meta?.uid); lista.compraRegistrada = false; terminar('Lista substituída'); };
+  $('rJuntar').onclick = () => {
+    marcarParaDesfazer();
+    const r = complementar(itens, selecao());
+    itens = r.itens; ligar(lista, meta?.uid); lista.compraRegistrada = false;
+    terminar(conferir ? `${plural(r.novos.length, 'item novo', 'itens novos')} em ${lista.nome}` : 'Listas juntadas');
+  };
+  $('rTrocar').onclick = () => { marcarParaDesfazer(); itens = selecao(); ligar(lista, meta?.uid); lista.compraRegistrada = false; terminar('Lista substituída'); };
 }
 
 /**
@@ -1342,15 +1414,17 @@ async function receber(texto, origem) {
   }
 }
 
-function painelImportar() {
+function painelImportar(dica = '') {
   abrirPainel(`<h3>Importar uma lista</h3>
-    <p>Cole o link ou o texto que você recebeu, da lista ou do retorno da compra. Também serve uma lista simples, um item por linha ou separada por vírgula.</p>
+    <p>${dica ? esc(dica) : 'Cole o link ou o texto que você recebeu, da lista ou do retorno da compra. Também serve uma lista simples, um item por linha ou separada por vírgula.'}</p>
     <textarea id="iTexto" placeholder="Cole aqui"></textarea>
     <button class="btn primario grande" id="iLer" type="button">Continuar</button>
+    <button class="btn" id="iFoto" type="button">Tenho a lista numa foto ou no papel</button>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
   $('iLer').onclick = async () => {
     if (!(await receber($('iTexto').value, 'texto'))) aviso('Nenhum item encontrado');
   };
+  $('iFoto').onclick = () => painelFoto();
 }
 
 async function lerLinkDoEndereco() {

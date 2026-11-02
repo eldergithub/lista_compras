@@ -397,5 +397,12 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   ok(it[1].obs === 'saco grande' && it[0].id && it[0].feito === false, 'itens da pronta viram itens novos');
 }
 
+{
+  const lens = 'Lista mercado\n02/11\n2 kg carne\nArroz\n- feijão\n6 leite zero lactose\nb\n3\nbanana madura';
+  const l = lerTexto(lens);
+  ok(l.map((i) => i.nome).join('|') === 'Carne|Arroz|Feijão|Leite|Banana', 'texto de foto: ignora data, letra e número soltos');
+  ok(l.find((i) => i.nome === 'Leite')?.obs === 'zero lactose' && l.find((i) => i.nome === 'Carne')?.qtd === 2, 'texto de foto: quantidade e observação');
+}
+
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);
 if (falhou) process.exit(1);

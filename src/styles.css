@@ -444,3 +444,5 @@ li.item, .dica-gestos { scroll-margin-top: calc(var(--altura-topo, 200px) + 12px
 header { grid-template-columns: minmax(0, 1fr); }
 .barra-add, .entrada { min-width: 0; }
 .entrada .texto { width: 100%; }
+.passos { margin: 0; padding-left: 22px; display: grid; gap: 8px; color: var(--texto); line-height: 1.4; }
+.passos li::marker { color: var(--destaque-forte); font-weight: 700; }
