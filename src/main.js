@@ -91,6 +91,7 @@ painelCompras = navegavel(painelCompras);
 painelUmaCompra = navegavel(painelUmaCompra);
 painelBackup = navegavel(painelBackup);
 painelSugestoes = navegavel(painelSugestoes);
+painelTema = navegavel(painelTema);
 painelSalvarPronta = navegavel(painelSalvarPronta);
 painelRenomearPronta = navegavel(painelRenomearPronta);
 
@@ -133,7 +134,7 @@ function desenhar() {
     const d = document.createElement('div');
     d.className = 'dica-gestos';
     d.innerHTML = `<b>Como usar a lista</b>
-      <ul><li>Toque na <b>caixinha</b> para marcar.</li><li>Toque no <b>nome</b> para observação, preço e mais.</li><li>Toque na <b>quantidade</b> para mudar.</li><li><b>Arraste</b> o item para o lado para tirar.</li></ul>
+      <ul><li>Toque no <b>+</b> lá embaixo para pôr item, ou no microfone para falar.</li><li>Toque na <b>caixinha</b> para marcar.</li><li>Toque no <b>nome</b> para observação, preço e mais.</li><li>Toque na <b>quantidade</b> para mudar.</li><li><b>Arraste</b> o item para o lado para tirar.</li></ul>
       <button class="btn" id="dgOk" type="button">Entendi</button>`;
     quadro.appendChild(d);
     $('dgOk').onclick = () => { gravarMarca(DICA_GESTOS); d.remove(); };
@@ -402,10 +403,11 @@ const Reconhecimento = window.SpeechRecognition || window.webkitSpeechRecognitio
 /** A barra de baixo: monta uma vez e fica sempre lá. */
 function montarBarra() {
   const campo = $('nTexto');
+  // O + é sempre o mesmo botão: com a caixa vazia ele abre a caixa (e o teclado); com texto, adiciona.
   const atualizarBotoes = () => {
     const tem = !!campo.value.trim();
-    $('nEnviar').hidden = !tem;
-    $('nMic').hidden = tem;
+    $('nEnviar').classList.toggle('pronto', tem);
+    $('nEnviar').setAttribute('aria-label', tem ? 'Adicionar' : 'Escrever um item');
   };
   campo.addEventListener('input', () => { atualizarBotoes(); atualizarPrevia(); });
   campo.addEventListener('focus', atualizarPrevia);
@@ -413,7 +415,7 @@ function montarBarra() {
   $('fNovo').onsubmit = (e) => {
     e.preventDefault();
     const novos = paraItens(lerEntrada(campo.value));
-    if (!novos.length) { campo.focus(); return; }
+    if (!novos.length) { campo.focus(); atualizarPrevia(); return; }
     campo.value = '';
     atualizarBotoes();
     adicionar(novos);
@@ -826,6 +828,34 @@ bLimpar.onclick = () => {
   aviso('Marcas e preços zerados', true);
 };
 
+// ---------------------------------------------------------------- tema
+const TEMAS = { sistema: 'Automático', claro: 'Claro', escuro: 'Escuro' };
+const lerTema = () => { try { const t = localStorage.getItem('nalista-tema'); return t in TEMAS ? t : 'sistema'; } catch { return 'sistema'; } };
+function aplicarTema(t) {
+  if (t === 'sistema') delete document.documentElement.dataset.tema;
+  else document.documentElement.dataset.tema = t;
+  // A barra do Android acompanha o tema escolhido.
+  const escuro = t === 'escuro' || (t === 'sistema' && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { m.removeAttribute('media'); m.content = escuro ? '#121614' : '#f3f5f1'; });
+}
+aplicarTema(lerTema());
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => aplicarTema(lerTema()));
+
+function painelTema() {
+  const atual = lerTema();
+  abrirPainel(`<h3>Tema</h3>
+    <div class="opcoes-tema" role="radiogroup" aria-label="Tema">${Object.entries(TEMAS).map(([id, nome]) => `
+      <label class="opcao-tema"><input type="radio" name="tema" value="${id}" ${id === atual ? 'checked' : ''}><span class="amostra amostra-${id}" aria-hidden="true"></span><span>${nome}${id === 'sistema' ? '<small>Segue o celular</small>' : ''}</span></label>`).join('')}
+    </div>
+    <button class="btn discreto" data-fechar type="button">Fechar</button>`);
+  painel.querySelectorAll('input[name=tema]').forEach((r) => {
+    r.onchange = () => {
+      try { if (r.value === 'sistema') localStorage.removeItem('nalista-tema'); else localStorage.setItem('nalista-tema', r.value); } catch { /* ok */ }
+      aplicarTema(r.value);
+    };
+  });
+}
+
 /** Menu ⋯: o que é usado de vez em quando. */
 function painelMais() {
   const faltaNaLista = lista.ultima ? juntar(itens, lista.ultima).length - itens.length : 0;
@@ -842,6 +872,7 @@ function painelMais() {
       ${opcao('mCompras', 'Compras anteriores', 'O que foi pego, o que faltou e quanto deu')}
       ${opcao('mBackup', 'Backup', 'Salvar ou restaurar tudo num arquivo')}
       ${opcao('mSugestoes', 'Sugestões', 'Tirar o que aparece no "de sempre" e na grade sem fazer sentido')}
+      ${opcao('mTema', 'Tema', TEMAS[lerTema()] + (lerTema() === 'sistema' ? ', segue o celular' : ''))}
       ${opcao('mDica', 'Como usar', 'Mostra de novo as dicas da lista')}
     </ul>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
@@ -873,6 +904,7 @@ function painelMais() {
   $('mCompras').onclick = painelCompras;
   $('mBackup').onclick = painelBackup;
   $('mSugestoes').onclick = () => painelSugestoes();
+  $('mTema').onclick = () => painelTema();
   $('mDica').onclick = () => { try { localStorage.removeItem(DICA_GESTOS); } catch { /* ok */ } fecharPainel(); desenhar(); window.scrollTo({ top: 0 }); };
 }
 $('bMais').onclick = painelMais;

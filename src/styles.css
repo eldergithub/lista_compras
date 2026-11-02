@@ -7,12 +7,17 @@
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-tema="claro"]) {
     --bg: #121614; --superficie: #1b211e; --texto: #e8ede9; --suave: #a3afa8; --linha: #2b3430; --linha-forte: #6f7b74;
     --destaque: #5cc488; --destaque-forte: #7fd3a0; --destaque-leve: #1f3a2a; --feito: #a3afa8; --perigo: #e07a63; --laranja-texto: #f0a866;
     color-scheme: dark;
   }
 }
+:root[data-tema="escuro"] {
+    --bg: #121614; --superficie: #1b211e; --texto: #e8ede9; --suave: #a3afa8; --linha: #2b3430; --linha-forte: #6f7b74;
+    --destaque: #5cc488; --destaque-forte: #7fd3a0; --destaque-leve: #1f3a2a; --feito: #a3afa8; --perigo: #e07a63; --laranja-texto: #f0a866;
+    color-scheme: dark;
+  }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
@@ -44,7 +49,10 @@ h1 { font-family: var(--titulo); font-weight: 800; font-size: 1.9rem; margin: 0;
 }
 .btn.primario { background: var(--destaque); border-color: var(--destaque); color: #fff; }
 .btn.primario:active { background: var(--destaque-forte); border-color: var(--destaque-forte); }
-@media (prefers-color-scheme: dark) { .btn.primario { color: #0e1a13; } }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) .btn.primario { color: #0e1a13; }
+}
+:root[data-tema="escuro"] .btn.primario { color: #0e1a13; }
 .btn.grande { width: 100%; min-height: 54px; font-size: 1.05rem; }
 .btn.discreto { background: transparent; border-color: transparent; color: var(--suave); }
 .btn:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
@@ -136,7 +144,10 @@ textarea {
 .aviso { display: flex; align-items: center; gap: 14px; width: max-content; max-width: calc(100vw - 32px); }
 .aviso.com-acao { pointer-events: auto; }
 .aviso button { font: inherit; font-weight: 700; color: var(--destaque-leve); background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; }
-@media (prefers-color-scheme: dark) { .aviso button { color: var(--destaque); } }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) .aviso button { color: var(--destaque); }
+}
+:root[data-tema="escuro"] .aviso button { color: var(--destaque); }
 
 /* Fase 4: hora da compra */
 li.faltou .nome { color: var(--feito); text-decoration: line-through dashed; }
@@ -159,7 +170,10 @@ li.faltou .caixa { border-style: dashed; }
 
 /* Fase 6: várias listas */
 :root { --tipo-mercado: #2f7d4f; --tipo-farmacia: #2e6ab0; --tipo-casa: #a8521a; --tipo-festa: #7a4fb0; --tipo-outros: #56605a; }
-@media (prefers-color-scheme: dark) { :root { --tipo-mercado: #5cc488; --tipo-farmacia: #7faee8; --tipo-casa: #f0a866; --tipo-festa: #b79be6; --tipo-outros: #a3afa8; } }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) { --tipo-mercado: #5cc488; --tipo-farmacia: #7faee8; --tipo-casa: #f0a866; --tipo-festa: #b79be6; --tipo-outros: #a3afa8; }
+}
+:root[data-tema="escuro"] { --tipo-mercado: #5cc488; --tipo-farmacia: #7faee8; --tipo-casa: #f0a866; --tipo-festa: #b79be6; --tipo-outros: #a3afa8; }
 .topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .marca { font-size: 1.6rem; }
 .icone-tipo { flex: none; width: 22px; height: 22px; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -225,7 +239,10 @@ li.faltou .caixa { border-style: dashed; }
 
 /* Complemento */
 .selo-novo { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #fff; background: var(--destaque); padding: 2px 7px; border-radius: 99px; white-space: nowrap; }
-@media (prefers-color-scheme: dark) { .selo-novo { color: #0e1a13; } }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) .selo-novo { color: #0e1a13; }
+}
+:root[data-tema="escuro"] .selo-novo { color: #0e1a13; }
 .painel .fileira .btn { padding-left: 6px; padding-right: 6px; }
 
 /* Tela única: barra de adicionar embaixo, linha com caixinha, nome e quantidade */
@@ -305,7 +322,12 @@ li.faltou .caixa { border-style: dashed; }
 .redondo svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .redondo.verde { background: var(--destaque-leve); border-color: var(--destaque); color: var(--destaque-forte); }
 .redondo.cheio { background: var(--destaque); border-color: var(--destaque); color: #fff; }
-@media (prefers-color-scheme: dark) { .redondo.cheio { color: #0e1a13; } }
+.redondo.cheio svg { width: 26px; height: 26px; stroke-width: 2.6; }
+.redondo.cheio.pronto { box-shadow: 0 0 0 3px var(--destaque-leve); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) .redondo.cheio { color: #0e1a13; }
+}
+:root[data-tema="escuro"] .redondo.cheio { color: #0e1a13; }
 .redondo:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
 .sobe { display: grid; gap: 8px; margin-bottom: 10px; max-height: 40vh; overflow-y: auto; }
 .sobe[hidden] { display: none; }
@@ -364,3 +386,15 @@ li.faltou .caixa { border-style: dashed; }
 .sugestoes .nome small { display: block; color: var(--suave); font-size: .85rem; }
 .sugestoes .tirar { flex: none; width: 44px; height: 44px; border: 0; background: transparent; color: var(--suave); font-size: 1.5rem; cursor: pointer; border-radius: 10px; }
 .sugestoes li.estranha .nome { color: var(--perigo); }
+
+/* Tema */
+.opcoes-tema { display: grid; gap: 8px; }
+.opcao-tema { display: flex; align-items: center; gap: 14px; padding: 12px 14px; min-height: 60px; border-radius: 14px; border: 1px solid var(--linha-forte); background: var(--superficie); cursor: pointer; font-weight: 700; }
+.opcao-tema small { display: block; font-weight: 400; color: var(--suave); font-size: .85rem; }
+.opcao-tema input { position: absolute; opacity: 0; pointer-events: none; }
+.opcao-tema:has(input:checked) { border: 2px solid var(--destaque); background: var(--destaque-leve); }
+.opcao-tema:has(input:focus-visible) { outline: 3px solid var(--destaque); outline-offset: 2px; }
+.amostra { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--linha-forte); }
+.amostra-claro { background: #f3f5f1; }
+.amostra-escuro { background: #121614; }
+.amostra-sistema { background: linear-gradient(135deg, #f3f5f1 50%, #121614 50%); }

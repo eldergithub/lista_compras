@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#f3f5f1" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#121614" media="(prefers-color-scheme: dark)">
+  <script>
+    // Tema escolhido no app (claro ou escuro), antes de pintar a tela: sem piscar.
+    try { var t = localStorage.getItem('nalista-tema'); if (t === 'claro' || t === 'escuro') document.documentElement.dataset.tema = t; } catch (e) {}
+  </script>
   <meta name="color-scheme" content="light dark">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -53,9 +57,9 @@
     </div>
     <form class="entrada" id="fNovo" autocomplete="off">
       <input class="texto" id="nTexto" placeholder="Adicionar item…" enterkeyhint="enter" autocapitalize="sentences" aria-label="Adicionar item">
-      <button class="redondo verde" id="nMic" type="button" aria-label="Falar os itens"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
-      <button class="redondo cheio" id="nEnviar" type="submit" aria-label="Adicionar" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg></button>
-      <button class="redondo" id="nEscolher" type="button" aria-label="Escolher itens por categoria ou lista pronta"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><path d="M16.75 13.5v6.5M13.5 16.75H20"/></svg></button>
+      <button class="redondo" id="nMic" type="button" aria-label="Falar os itens"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <button class="redondo" id="nEscolher" type="button" aria-label="Escolher itens: listas prontas e categorias"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg></button>
+      <button class="redondo cheio" id="nEnviar" type="submit" aria-label="Adicionar item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
     </form>
   </div>
   <div class="fundo" id="fundo"><div class="painel" id="painel" role="dialog" aria-modal="true"></div></div>
