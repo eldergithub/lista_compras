@@ -69,6 +69,26 @@ function lembrar(lista, contar = true) {
   salvarHistorico(historico);
 }
 
+// Painéis que o botão voltar sabe reabrir (ver navegavel, mais abaixo).
+/* eslint-disable no-func-assign */
+painelItem = navegavel(painelItem);
+painelEscolher = navegavel(painelEscolher);
+painelDitado = navegavel(painelDitado);
+painelMais = navegavel(painelMais);
+painelOrcamento = navegavel(painelOrcamento);
+painelEnviar = navegavel(painelEnviar);
+painelRecebida = navegavel(painelRecebida);
+painelComplemento = navegavel(painelComplemento);
+painelRetorno = navegavel(painelRetorno);
+painelImportar = navegavel(painelImportar);
+painelModelos = navegavel(painelModelos);
+painelModelo = navegavel(painelModelo);
+painelListas = navegavel(painelListas);
+painelDaLista = navegavel(painelDaLista);
+painelCompras = navegavel(painelCompras);
+painelUmaCompra = navegavel(painelUmaCompra);
+painelBackup = navegavel(painelBackup);
+
 // ---------------------------------------------------------------- avisos e desfazer
 let antesDeDesfazer = null;
 function aviso(msg, podeDesfazer = false) {
@@ -759,7 +779,58 @@ $('bMais').onclick = painelMais;
 const fundo = $('fundo'), painel = $('painel');
 let painelAtual = null;
 let aoFecharPainel = null;
-/** Abre o painel de baixo. `tipo` dá o jeito (alto, ditado); `aoFechar` roda quando ele some. */
+
+/*
+ * Botão voltar do Android: cada painel aberto ganha uma entrada no histórico
+ * do navegador. Voltar fecha o painel de cima e reabre o de baixo (Listas →
+ * Nova lista → voltar = Listas); com um painel só, voltar fecha. O app só
+ * sai quando não há painel aberto.
+ *
+ * `pilha` guarda como reabrir cada painel; `noHistorico` é quantas entradas
+ * já estão no histórico. Como history.back() é assíncrono, `voltando` segura
+ * a sincronização até o popstate chegar.
+ */
+let pilha = [];
+let noHistorico = 0;
+let voltando = false;
+let proximoPainel = null; // quem está abrindo o painel agora (ver navegavel)
+let restaurando = false;
+
+/** Marca uma função de painel: o voltar consegue reabri-la com os mesmos argumentos. */
+function navegavel(fn) {
+  return function (...args) {
+    proximoPainel = { fn, reabrir: () => fn(...args) };
+    return fn(...args);
+  };
+}
+
+function sincronizarHistorico() {
+  if (voltando) return;
+  if (noHistorico < pilha.length) {
+    while (noHistorico < pilha.length) { history.pushState({ nalista: noHistorico + 1 }, ''); noHistorico++; }
+  } else if (noHistorico > pilha.length) {
+    voltando = true;
+    const n = noHistorico - pilha.length;
+    noHistorico = pilha.length;
+    history.go(-n);
+  }
+}
+
+addEventListener('popstate', () => {
+  if (voltando) { voltando = false; sincronizarHistorico(); return; }
+  // A pessoa apertou voltar.
+  if (noHistorico > 0) noHistorico--;
+  if (!pilha.length) { if (ajustando) fecharAjuste(); return; }
+  pilha.pop();
+  // Desce até um painel que dê para reabrir; se não houver, fecha tudo.
+  while (pilha.length && !pilha[pilha.length - 1].reabrir) pilha.pop();
+  if (!pilha.length) { fecharDeVez(); sincronizarHistorico(); return; }
+  restaurando = true;
+  try { pilha[pilha.length - 1].reabrir(); } finally { restaurando = false; }
+  sincronizarHistorico();
+});
+
+/** Abre o painel de baixo. `tipo` dá o jeito (escolher, ditado); `aoFechar` roda quando ele some. */
 function abrirPainel(html, tipo = null, aoFechar = null) {
   if (aoFecharPainel) { const f = aoFecharPainel; aoFecharPainel = null; f(); }
   painel.innerHTML = html;
@@ -768,14 +839,36 @@ function abrirPainel(html, tipo = null, aoFechar = null) {
   aoFecharPainel = aoFechar;
   fundo.classList.add('aberto');
   painel.querySelectorAll('[data-fechar]').forEach((b) => { b.onclick = fecharPainel; });
+  const quem = proximoPainel;
+  proximoPainel = null;
+  const topo = pilha[pilha.length - 1];
+  if (restaurando) {
+    // Reabrindo o de baixo depois de um voltar: não empilha de novo.
+  } else if (topo && quem && topo.fn === quem.fn) {
+    topo.reabrir = quem.reabrir; // o mesmo painel se redesenhando (troca de aba, por exemplo)
+  } else {
+    pilha.push({ fn: quem?.fn || null, reabrir: quem?.reabrir || null });
+  }
+  sincronizarHistorico();
 }
-function fecharPainel() {
+function fecharDeVez() {
   fundo.classList.remove('aberto');
   painelAtual = null;
+  pilha = [];
   if (aoFecharPainel) { const f = aoFecharPainel; aoFecharPainel = null; f(); }
 }
+/** Fecha todos os painéis (Cancelar, Fechar, toque fora, depois de salvar). */
+function fecharPainel() {
+  fecharDeVez();
+  sincronizarHistorico();
+}
+/** "Voltar" de dentro do painel: o mesmo que o botão voltar do aparelho. */
+function voltarPainel() {
+  if (pilha.length > 1 && noHistorico > 0) history.back();
+  else fecharPainel();
+}
 fundo.addEventListener('click', (e) => { if (e.target === fundo) fecharPainel(); });
-addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharPainel(); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && fundo.classList.contains('aberto')) voltarPainel(); });
 
 function painelOrcamento() {
   const valor = orcamento ? String(orcamento.toFixed(2)).replace('.', ',') : '';
@@ -823,7 +916,7 @@ async function enviarRetorno() {
   compartilhar({ title: 'NaLista', text: '🧾 Retorno da compra — toque para ver o que faltou:', url: link }, link);
 }
 
-$('bEnviar').onclick = async () => {
+async function painelEnviar() {
   if (!itens.length) { aviso('A lista está vazia'); return; }
   const meta = { nome: lista.nome, tipo: lista.tipo, uid: lista.uid };
   const link = await montarLink(novaCompra(itens), location.href, meta);
@@ -872,7 +965,8 @@ $('bEnviar').onclick = async () => {
       '<p>Aponte a câmera do outro celular para o código.</p>';
     caixa.hidden = false;
   };
-};
+}
+$('bEnviar').onclick = () => painelEnviar();
 
 /** Complemento: itens soltos para juntar à lista de quem já está comprando. */
 async function enviarComplemento(lista_, meta) {
@@ -1126,7 +1220,7 @@ function painelModelo(m) {
   botoes.forEach((b) => { b.onclick = () => { escolhidos.has(b.dataset.nome) ? escolhidos.delete(b.dataset.nome) : escolhidos.add(b.dataset.nome); atualizar(); }; });
   $('mTodos').onclick = () => { botoes.forEach((b) => escolhidos.add(b.dataset.nome)); atualizar(); };
   $('mNenhum').onclick = () => { escolhidos.clear(); atualizar(); };
-  $('mVoltar').onclick = painelModelos;
+  $('mVoltar').onclick = voltarPainel;
   $('mAdicionar').onclick = () => {
     const novos = paraItens(todos.filter((i) => escolhidos.has(i.nome)).map((i) => ({ nome: i.nome, cat: i.cat, qtd: i.qtd, un: i.un, unDita: i.qtd != null })));
     fecharPainel();
@@ -1257,7 +1351,7 @@ function painelUmaCompra(c) {
   };
   if ($('cFaltou')) $('cFaltou').onclick = () => aplicar(faltando, `${plural(faltando.length, 'item entrou', 'itens entraram')} na lista`);
   $('cRepetir').onclick = () => aplicar(c.itens.map((i) => ({ ...i })), 'Compra repetida na lista');
-  $('cVoltar').onclick = painelCompras;
+  $('cVoltar').onclick = voltarPainel;
 }
 
 // ---------------------------------------------------------------- backup
