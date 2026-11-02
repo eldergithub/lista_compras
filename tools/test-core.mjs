@@ -23,7 +23,7 @@ import { categoriasEmUso } from '../src/core/lista.js';
 import { ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra } from '../src/core/compra.js';
 import { codificar, decodificar, montarLink, codigoDoEndereco } from '../src/core/link.js';
 
-import { trechoNovo, juntarOuvidos, textoDaSessao, limparFala } from '../src/core/fala.js';
+import { trechoNovo, juntarOuvidos, textoDaSessao, limparFala, separarPendente } from '../src/core/fala.js';
 import { alternarObs, temObs, sugestoesDeObs } from '../src/core/observacoes.js';
 
 let passou = 0, falhou = 0;
@@ -346,6 +346,13 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   ok(fala(['dois quilos de frango três cebolas mais um leite zero lactose']).map((i) => i[0]).join('|') === 'Frango|Cebola|Leite', '"mais um" separa, "zero lactose" não');
   ok(JSON.stringify(fala(['um quilo e meio de carne meia dúzia de ovos'])) === JSON.stringify([['Carne', 1.5, 'kg'], ['Ovos', 6, 'un']]), 'quantidades faladas sem pausa');
   ok(lerEntrada(limparFala('banana a mais barata'))[0].obs === 'a mais barata', '"a mais barata" continua observação');
+}
+
+{
+  const a = separarPendente('uma dipirona e dois quilos de');
+  ok(a.completo === 'uma dipirona' && a.pendente === 'e dois quilos de', 'pausa no meio do item: o resto espera');
+  ok(separarPendente('pão leite').pendente === '' && separarPendente('3').completo === '', 'fala completa e só número');
+  ok(separarPendente('seis leites sem').pendente === 'sem', '"sem" no fim espera a observação');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);

@@ -86,3 +86,25 @@ export function limparFala(texto) {
   // "e ," que sobrou de "e também".
   return saida.join(' ').replace(/(^|\s)e\s*,/gi, ' ,').replace(/^\s*,\s*/, '').replace(/\s*,\s*$/, '').replace(/\s+,/g, ',');
 }
+
+// Palavras que, no fim da fala, mostram que a pessoa ainda não disse o produto.
+const INCOMPLETO = new Set(['um', 'uma', 'dois', 'duas', 'tres', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze',
+  'quinze', 'vinte', 'trinta', 'cem', 'cento', 'duzentos', 'duzentas', 'trezentos', 'trezentas', 'quinhentos', 'quinhentas', 'mil', 'meia', 'meio',
+  'quilo', 'quilos', 'kilo', 'kilos', 'kg', 'grama', 'gramas', 'g', 'litro', 'litros', 'caixa', 'caixas', 'caixinha', 'pacote', 'pacotes',
+  'duzia', 'duzias', 'unidade', 'unidades', 'lata', 'latas', 'garrafa', 'garrafas', 'saco', 'sacos', 'de', 'do', 'da', 'dos', 'das', 'e', 'mais', 'com', 'sem']);
+
+/**
+ * Separa o fim da fala que ainda está pela metade ("…e dois quilos de")
+ * do que já dá para virar item. Enquanto a pessoa pensa, o pedaço pela
+ * metade fica esperando em vez de virar um item estranho.
+ */
+export function separarPendente(texto) {
+  const palavras = String(texto || '').trim().split(/\s+/).filter(Boolean);
+  let fim = palavras.length;
+  while (fim > 0) {
+    const p = normalizar(palavras[fim - 1]).replace(/[.,!?;]/g, '');
+    if (!(INCOMPLETO.has(p) || /^\d+([.,]\d+)?$/.test(p))) break;
+    fim--;
+  }
+  return { completo: palavras.slice(0, fim).join(' '), pendente: palavras.slice(fim).join(' ') };
+}

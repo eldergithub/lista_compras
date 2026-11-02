@@ -18,7 +18,7 @@ import { montarBackup, lerBackup, nomeDoArquivo } from './core/backup.js';
 import { modelosPara, itensDoModelo } from './core/modelos.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from './core/retorno.js';
 import { sugestoesDeObs, alternarObs, temObs } from './core/observacoes.js';
-import { juntarOuvidos, textoDaSessao, limparFala } from './core/fala.js';
+import { juntarOuvidos, textoDaSessao, limparFala, separarPendente } from './core/fala.js';
 import { registrar, doHistorico, sugerir, deSempre, gradeDaCategoria } from './core/historico.js';
 import {
   ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra, resolvido,
@@ -551,32 +551,39 @@ function tocarNaGrade(g) {
  * saiu errado.
  */
 function painelDitado() {
-  let falado = '';        // o que já foi ouvido nas sessões anteriores
+  let falado = '';        // o que já foi ouvido nas sessões anteriores (ou corrigido à mão)
   let daSessao = '';      // o que a sessão atual ouviu até agora
   const tirados = new Set();
   let querOuvir = true;
   let rec = null;
-  let semFala = 0;
   let itensOuvidos = [];
+  let ultimaFala = Date.now();
+  let corrigindo = false;
+  const PACIENCIA = 120000; // dois minutos em silêncio e o microfone descansa
   abrirPainel(`<h3>Fale os itens</h3>
-    <p id="ftEstado" class="estado-mic ouvindo">Ouvindo… fale tudo seguido, do jeito que falaria para alguém: “uma dipirona, dois quilos de frango, seis leites zero lactose”.</p>
-    <p class="ouvi" id="ftOuvi" hidden></p>
+    <p id="ftEstado" class="estado-mic ouvindo">Ouvindo… fale do seu jeito e pare para pensar quando quiser: o microfone espera.</p>
+    <div class="ouvi-caixa" id="ftOuviCaixa" hidden>
+      <p class="ouvi" id="ftOuvi"></p>
+      <button class="btn discreto corrigir" id="ftCorrigir" type="button">Corrigir o texto</button>
+    </div>
     <ul class="ouvidos" id="ftLista" hidden></ul>
     <div class="fileira">
       <button class="btn mic-bt ouvindo" id="ftMic" type="button" aria-pressed="true">Parar</button>
       <button class="btn primario" id="ftPor" type="button">Pôr na lista</button>
     </div>
-    <button class="btn discreto" id="ftCancelar" type="button">Cancelar</button>`, 'ditado', () => { querOuvir = false; desligar(); });
+    <button class="btn discreto" id="ftCancelar" type="button">Cancelar</button>`, 'ditado', () => { querOuvir = false; clearInterval(relogio); desligar(); });
 
   const chave = (i) => `${i.nome.toLowerCase()}|${i.qtd ?? ''}|${i.obs || ''}`;
   const textoTodo = () => [falado, daSessao].filter(Boolean).join(' ');
   const atualizar = () => {
     const texto = textoTodo();
-    itensOuvidos = juntarOuvidos([], paraItens(lerEntrada(limparFala(texto)))).filter((i) => !tirados.has(chave(i)));
-    const ouvi = $('ftOuvi'), ul = $('ftLista');
+    // O fim pela metade ("…e dois quilos de") espera a pessoa terminar de pensar.
+    const { completo, pendente } = separarPendente(texto);
+    itensOuvidos = juntarOuvidos([], paraItens(lerEntrada(limparFala(completo)))).filter((i) => !tirados.has(chave(i)));
+    const caixa = $('ftOuviCaixa'), ul = $('ftLista');
     if (!ul) return;
-    ouvi.hidden = !texto;
-    ouvi.textContent = texto ? `Ouvi: “${texto}”` : '';
+    caixa.hidden = !texto;
+    if (!corrigindo) $('ftOuvi').innerHTML = texto ? `Ouvi: “${esc(completo)}${pendente ? `${completo ? ' ' : ''}<span class="esperando">${esc(pendente)}…</span>` : ''}”` : '';
     ul.hidden = !itensOuvidos.length;
     ul.innerHTML = itensOuvidos.map((i, n) => {
       const q = formatarQtd(i);
@@ -595,6 +602,14 @@ function painelDitado() {
     b.classList.toggle('ouvindo', ouvindo);
     b.setAttribute('aria-pressed', String(ouvindo));
   };
+  // Enquanto a pessoa pensa, o aviso deixa claro que o microfone continua esperando.
+  const relogio = setInterval(() => {
+    if (!querOuvir) return;
+    const parado = Date.now() - ultimaFala;
+    const { pendente } = separarPendente(textoTodo());
+    if (parado > 2500) estado(pendente ? `Pode continuar: “${pendente}…”` : 'Pode pensar com calma, continuo ouvindo. Quando terminar, toque em Pôr na lista.', true);
+    else estado('Ouvindo…', true);
+  }, 800);
   const fecharSessao = () => { if (daSessao) { falado = textoTodo(); daSessao = ''; } };
   function ligar() {
     if (!querOuvir) return;
@@ -602,8 +617,9 @@ function painelDitado() {
     r.lang = 'pt-BR';
     r.continuous = true;
     r.interimResults = true;
+    const inicio = Date.now();
     r.onresult = (e) => {
-      semFala = 0;
+      ultimaFala = Date.now();
       // Remonta a sessão inteira a cada evento: aguenta resultados reenviados, acumulados ou picados.
       daSessao = textoDaSessao(Array.from(e.results, (x) => x[0].transcript));
       atualizar();
@@ -616,13 +632,14 @@ function painelDitado() {
         network: 'Falar precisa de internet. Sem sinal, use o microfone do teclado na barra de baixo.',
       }[e.error];
       if (motivo) { querOuvir = false; estado(motivo, false); }
-      if (e.error === 'no-speech') semFala++;
+      // "no-speech" é só silêncio: o onend religa.
     };
     r.onend = () => {
       if (rec === r) rec = null;
       fecharSessao();
-      if (querOuvir && semFala < 3) { setTimeout(ligar, 120); return; }
-      if (querOuvir) { querOuvir = false; estado('Parei porque ficou em silêncio. Toque em Continuar falando quando quiser.', false); }
+      // Sessão que caiu logo de cara (sem ouvir nada) religa com uma folga, para não ficar piscando.
+      if (querOuvir && Date.now() - ultimaFala < PACIENCIA) { setTimeout(ligar, Date.now() - inicio < 1000 ? 700 : 100); return; }
+      if (querOuvir) { querOuvir = false; estado('O microfone descansou depois de um tempo em silêncio. Toque em Continuar falando quando quiser.', false); }
     };
     try { r.start(); rec = r; } catch { querOuvir = false; estado('Não deu para ligar o microfone agora. Tente de novo.', false); }
   }
@@ -630,9 +647,23 @@ function painelDitado() {
 
   $('ftMic').onclick = () => {
     if (querOuvir) { querOuvir = false; desligar(); estado(itensOuvidos.length ? 'Confira os itens e toque em Pôr na lista.' : 'Parado.', false); return; }
-    querOuvir = true; semFala = 0;
+    if (corrigindo) terminarCorrecao();
+    querOuvir = true; ultimaFala = Date.now();
     estado('Ouvindo…', true);
     ligar();
+  };
+  // Corrigir à mão o que o microfone entendeu errado; os itens acompanham.
+  const terminarCorrecao = () => { corrigindo = false; $('ftCorrigir').textContent = 'Corrigir o texto'; atualizar(); };
+  $('ftCorrigir').onclick = () => {
+    if (corrigindo) { terminarCorrecao(); return; }
+    querOuvir = false; desligar(); fecharSessao();
+    estado('Corrija o texto; os itens mudam junto.', false);
+    corrigindo = true;
+    $('ftCorrigir').textContent = 'Pronto';
+    $('ftOuvi').innerHTML = `<textarea id="ftTexto" class="ouvi-texto" aria-label="Texto ouvido">${esc(falado)}</textarea>`;
+    const t = $('ftTexto');
+    t.focus();
+    t.addEventListener('input', () => { falado = t.value; daSessao = ''; atualizar(); });
   };
   $('ftPor').onclick = () => {
     querOuvir = false; desligar();
