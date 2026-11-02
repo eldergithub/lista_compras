@@ -46,10 +46,11 @@ export function adicionarItens(atuais, novos) {
     if (!igual) { itens.push({ ...novo, id: novoId(), feito: false }); continue; }
     somados.push(igual.nome);
     igual.feito = false;
+    // A observação nova soma à que já havia ("maduras" + "para hoje").
+    if (novo.obs && !(igual.obs || '').toLowerCase().includes(novo.obs.toLowerCase())) igual.obs = [igual.obs, novo.obs].filter(Boolean).join(', ');
     if (novo.qtd == null) continue;
     if (igual.qtd != null && igual.un === novo.un) igual.qtd += novo.qtd;
     else { igual.qtd = novo.qtd; igual.un = novo.un; }
-    if (novo.obs) igual.obs = novo.obs;
   }
   return { itens, somados };
 }

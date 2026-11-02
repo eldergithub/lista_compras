@@ -16,6 +16,7 @@
 import { adivinharCategoria, categoriaCanonica, normalizar } from './categorias.js';
 import { categoriasEmUso, criarItem, formatarQtd } from './lista.js';
 import { procurarNoCatalogo } from './catalogo.js';
+import { inicioDaObs, tamanhoDoModificador } from './observacoes.js';
 
 // ---------------------------------------------------------------- saída
 
@@ -118,7 +119,19 @@ export function lerPedaco(texto) {
 function montar(nomeBruto, qtd, un, obs) {
   let nome = nomeBruto.trim().replace(/\s+/g, ' ');
   if (!nome) return null;
-  const doCatalogo = procurarNoCatalogo(nome);
+  let doCatalogo = procurarNoCatalogo(nome);
+  // "leite zero lactose", "banana bem madura", "café da marca Santa Clara":
+  // o fim que não é produto vira observação. "Arroz integral" é produto.
+  if (!doCatalogo) {
+    const palavras = nome.split(' ');
+    const corte = inicioDaObs(palavras.map(normalizar), 1);
+    if (corte < palavras.length) {
+      const extra = palavras.slice(corte).join(' ').replace(/^(e|d[aeo])\s+/i, '').replace(/^\S+/, (p) => p.toLowerCase());
+      nome = palavras.slice(0, corte).join(' ');
+      obs = [extra, obs].filter(Boolean).join(', ');
+      doCatalogo = procurarNoCatalogo(nome);
+    }
+  }
   if (doCatalogo) nome = doCatalogo.nome;
   else nome = nome.charAt(0).toUpperCase() + nome.slice(1);
   return {
@@ -150,7 +163,10 @@ export function separarItens(linha) {
       const anterior = normalizar(palavras[i - 1] || '');
       // "um quilo e meio", "trezentos e cinquenta": o "e" está no meio de uma quantidade.
       const dentroDeQuantidade = ehNumero(seguinte) && (ehNumero(anterior) || anterior in UNIDADE);
-      if (normalizar(p) === 'e' && atual.length && seguinte && !dentroDeQuantidade) {
+      // "carne sem osso e magra": o "e" liga duas observações do mesmo item.
+      const resto = palavras.slice(i + 1).map(normalizar);
+      const ligaObservacao = tamanhoDoModificador(resto, 0) > 0 && !procurarNoCatalogo(palavras[i + 1]);
+      if (normalizar(p) === 'e' && atual.length && seguinte && !dentroDeQuantidade && !ligaObservacao) {
         pedacos.push(atual.join(' ')); atual = [];
       } else {
         atual.push(p);
@@ -161,11 +177,49 @@ export function separarItens(linha) {
   return pedacos.filter((p) => p.trim());
 }
 
+/**
+ * Itens ditos um atrás do outro, sem vírgula nem pausa: "frango pão seis leites".
+ * Só separa quando todas as palavras se encaixam (quantidade + produto do
+ * catálogo + observação); se sobrar uma palavra desconhecida, devolve null
+ * e o pedaço fica como um item só.
+ */
+export function segmentar(pedaco) {
+  const original = String(pedaco).trim().replace(/(\d)([a-zA-Z])/g, '$1 $2').split(/\s+/).filter(Boolean);
+  const palavras = original.map(normalizar);
+  const partes = [];
+  let i = 0;
+  while (i < palavras.length) {
+    const inicio = i;
+    const num = lerNumero(palavras, i);
+    if (num) {
+      i = num[1];
+      if (palavras[i] in UNIDADE) i++;
+      if (palavras[i] === 'e' && MEIO.has(palavras[i + 1])) i += 2;
+      if (['de', 'do', 'da', 'dos', 'das'].includes(palavras[i])) i++;
+    }
+    // O produto mais comprido que o catálogo conhece ("pão de queijo" antes de "pão").
+    let fim = 0;
+    for (let j = Math.min(palavras.length, i + 4); j > i; j--) {
+      if (procurarNoCatalogo(original.slice(i, j).join(' '))) { fim = j; break; }
+    }
+    if (!fim) return null;
+    i = fim;
+    let n;
+    while (i < palavras.length && (n = tamanhoDoModificador(palavras, i))) i += n;
+    partes.push(original.slice(inicio, i).join(' '));
+  }
+  return partes.length > 1 ? partes : null;
+}
+
 /** O que a pessoa digitou ou falou na caixa de adicionar. */
 export function lerEntrada(texto) {
-  // Quem fala pelo microfone às vezes diz "vírgula" entre os itens.
-  const falado = String(texto).replace(/\s+v[ií]rgula\b\s*/gi, ', ');
-  return falado.split(/\r?\n/).flatMap(separarItens).map(lerPedaco).filter(Boolean);
+  // Quem fala pelo microfone às vezes diz "vírgula" ou "próximo" entre os itens.
+  const falado = String(texto)
+    .replace(/\s+v[ií]rgula\b\s*/gi, ', ')
+    .replace(/\s*\bpr[oó]ximo( item)?\b\s*/gi, ', ');
+  return falado.split(/\r?\n/).flatMap(separarItens)
+    .flatMap((p) => segmentar(p) || [p])
+    .map(lerPedaco).filter(Boolean);
 }
 
 /** Um texto inteiro colado: aceita cabeçalhos de categoria ("*Açougue*", "Feira:"). */

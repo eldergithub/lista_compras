@@ -23,6 +23,9 @@ import { categoriasEmUso } from '../src/core/lista.js';
 import { ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra } from '../src/core/compra.js';
 import { codificar, decodificar, montarLink, codigoDoEndereco } from '../src/core/link.js';
 
+import { trechoNovo, juntarOuvidos } from '../src/core/fala.js';
+import { alternarObs, temObs, sugestoesDeObs } from '../src/core/observacoes.js';
+
 let passou = 0, falhou = 0;
 function ok(cond, nome) {
   if (cond) { passou++; return; }
@@ -295,6 +298,42 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   const reg2 = { id: 'r2', listaId: 'L', origem: 'compra', data: 1000 + 3600e3 };
   ok(guardarOuAtualizar([reg1], reg2).length === 1 && guardarOuAtualizar([reg1], reg2)[0].id === 'r1', 'compra reaberta atualiza o registro');
   ok(guardarOuAtualizar([reg1], { ...reg2, data: 1000 + 13 * 3600e3 }).length === 2, 'outro dia é outra compra');
+}
+
+// ---------------------------------------------------------------- fala e observações
+{
+  const nomes = (t) => lerEntrada(t).map((i) => i.nome).join('|');
+  ok(nomes('frango pão leite') === 'Frango|Pão|Leite', 'itens falados sem pausa se separam');
+  const d = lerEntrada('dois quilos de frango pão seis leites');
+  ok(d.length === 3 && d[0].qtd === 2 && d[0].un === 'kg' && d[2].qtd === 6, 'sem pausa e com quantidades');
+  ok(nomes('pão de queijo e leite') === 'Pão de queijo|Leite', 'produto mais comprido vence');
+  ok(nomes('queijo coalho presunto') === 'Queijo coalho|Presunto', 'dois produtos de duas palavras');
+  ok(lerEntrada('sabão de coco biscoito da vó').length === 1, 'palavra desconhecida: não separa');
+  ok(nomes('alface, tomate próximo cebola') === 'Alface|Tomate|Cebola', '"próximo" separa');
+  const lz = lerEntrada('leite zero lactose')[0];
+  ok(lz.nome === 'Leite' && lz.obs === 'zero lactose', 'observação no fim do nome');
+  ok(lerEntrada('arroz integral')[0].nome === 'Arroz integral' && !lerEntrada('arroz integral')[0].obs, 'produto do catálogo não vira observação');
+  const cm = lerEntrada('café da marca Santa Clara')[0];
+  ok(cm.nome === 'Café' && cm.obs === 'marca Santa Clara', 'marca vira observação');
+  const co = lerEntrada('carne sem osso e magra');
+  ok(co.length === 1 && co[0].obs === 'sem osso e magra', '"e" entre observações não separa');
+  const fl = lerEntrada('6 leites zero lactose, banana madura');
+  ok(fl.length === 2 && fl[0].qtd === 6 && fl[0].obs === 'zero lactose' && fl[1].obs === 'madura', 'quantidade e observação juntas');
+  ok(lerEntrada('Banana (maduras)')[0].obs === 'maduras', 'parênteses continuam valendo');
+  const so = adicionarItens([criarItem('Banana', 'Hortifrúti', 1, 'dz')], [{ ...criarItem('Banana', 'Hortifrúti'), obs: 'maduras' }]).itens[0];
+  ok(so.qtd === 1 && so.obs === 'maduras', 'item repetido sem quantidade ainda leva a observação');
+
+  ok(trechoNovo('', 'frango') === 'frango', 'primeira frase');
+  ok(trechoNovo('frango', 'frango pão') === 'pão', 'frase acumulada: só o novo');
+  ok(trechoNovo('frango pão', 'frango pão') === '', 'frase repetida: nada');
+  ok(trechoNovo('Frango.', 'frango') === '', 'repetição com pontuação diferente');
+  ok(trechoNovo('frango', 'leite') === 'leite', 'frase nova');
+  const j = juntarOuvidos([criarItem('Pão', 'Padaria')], [criarItem('Pão', 'Padaria'), criarItem('Leite', 'Frios e laticínios', 6)]);
+  ok(j.length === 2, 'eco do mesmo item não duplica');
+
+  ok(alternarObs('', 'maduras') === 'maduras' && alternarObs('maduras', 'para hoje') === 'maduras, para hoje', 'chip acrescenta observação');
+  ok(alternarObs('maduras, para hoje', 'maduras') === 'para hoje', 'chip tira observação');
+  ok(temObs('Zero lactose', 'zero lactose') && sugestoesDeObs('Frios e laticínios').includes('zero lactose'), 'sugestões por categoria');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);

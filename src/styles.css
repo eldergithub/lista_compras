@@ -37,7 +37,6 @@ h1 { font-family: var(--titulo); font-weight: 800; font-size: 1.9rem; margin: 0;
 #contagem b { color: var(--texto); }
 .barra { height: 8px; border-radius: 99px; background: var(--linha); overflow: hidden; }
 .barra span { display: block; height: 100%; width: 0; background: var(--destaque); transition: width .25s; }
-.acoes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 
 .btn {
   font: inherit; font-size: .95rem; font-weight: 700; padding: 11px 10px; min-height: 46px;
@@ -66,19 +65,11 @@ h2 {
 ul { list-style: none; margin: 0; padding: 0; background: var(--superficie); border: 1px solid var(--linha); border-radius: 14px; overflow: hidden; }
 li + li { border-top: 1px solid var(--linha); }
 
-.linha { display: flex; align-items: center; gap: 14px; padding: 15px 16px; min-height: 56px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.linha input { position: absolute; opacity: 0; pointer-events: none; }
 .caixa { flex: none; width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--linha-forte); display: grid; place-items: center; transition: background .15s, border-color .15s; }
 .caixa svg { width: 16px; height: 16px; opacity: 0; stroke: var(--superficie); }
 .nome { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .qtd { font-weight: 700; font-size: .95rem; font-variant-numeric: tabular-nums; background: var(--destaque-leve); padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
-.linha input:checked + .caixa { background: var(--destaque); border-color: var(--destaque); }
-.linha input:checked + .caixa svg { opacity: 1; }
-.linha input:checked ~ .nome { color: var(--feito); text-decoration: line-through; }
-.linha input:checked ~ .qtd { color: var(--feito); background: transparent; }
-.linha input:focus-visible + .caixa { outline: 3px solid var(--destaque); outline-offset: 2px; }
 
-.linha-ed { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 8px; padding: 10px 12px; min-height: 56px; }
 .passo { display: flex; align-items: center; border: 1px solid var(--linha-forte); border-radius: 10px; overflow: hidden; }
 .passo button { width: 40px; height: 40px; border: 0; background: transparent; color: var(--texto); font: inherit; font-size: 1.25rem; cursor: pointer; }
 .passo span { min-width: 38px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
@@ -86,11 +77,6 @@ select, .texto {
   font: inherit; font-size: .95rem; color: var(--texto); background: var(--superficie);
   border: 1px solid var(--linha-forte); border-radius: 10px; height: 42px; padding: 0 8px;
 }
-.remover { width: 40px; height: 40px; border: 0; background: transparent; color: var(--perigo); font-size: 1.4rem; cursor: pointer; border-radius: 10px; }
-.novo { margin-top: 10px; background: var(--superficie); border: 1px solid var(--linha); border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
-.novo .texto { width: 100%; height: 46px; font-size: 16px; }
-.duas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.duas select { height: 46px; }
 .obs { color: var(--suave); font-size: .9rem; margin: 6px 2px 0; }
 
 .vazio { color: var(--suave); text-align: center; padding: 40px 10px; }
@@ -130,8 +116,6 @@ textarea {
 
 /* Fase 3: montar a lista */
 .nome small { display: block; color: var(--suave); font-size: .85rem; margin-top: 2px; }
-.nome-bt { font: inherit; color: inherit; background: none; border: 0; padding: 6px 0; text-align: left; cursor: pointer; text-decoration: underline dotted var(--linha); text-underline-offset: 4px; }
-.entrada { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chips:empty { display: none; }
 .chip {
@@ -155,16 +139,8 @@ textarea {
 @media (prefers-color-scheme: dark) { .aviso button { color: var(--destaque); } }
 
 /* Fase 4: hora da compra */
-.linha-compra { display: flex; align-items: stretch; }
-.linha-compra .linha { flex: 1; min-width: 0; padding-right: 8px; }
-.preco-bt {
-  flex: none; min-width: 64px; margin: 8px 10px 8px 0; padding: 0 10px; border-radius: 10px;
-  border: 1px dashed var(--linha-forte); background: transparent; color: var(--suave);
-  font: inherit; font-size: .9rem; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer;
-}
-.preco-bt.tem { border-style: solid; color: var(--texto); }
 li.faltou .nome { color: var(--feito); text-decoration: line-through dashed; }
-li.faltou .qtd { background: transparent; color: var(--feito); }
+li.faltou .qtd-bt { background: transparent; color: var(--feito); }
 li.faltou .caixa { border-style: dashed; }
 .tag-faltou { font-size: .78rem; font-weight: 700; color: var(--perigo); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 .gasto {
@@ -221,13 +197,6 @@ li.faltou .caixa { border-style: dashed; }
 .btn.arquivo input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
 /* Grade de sugestões e microfone */
-.entrada.com-mic { grid-template-columns: 1fr auto auto; }
-.btn.mic { width: 46px; padding: 0; display: grid; place-items: center; }
-.btn.mic svg { width: 22px; height: 22px; fill: none; stroke: var(--texto); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.btn.mic.ouvindo { background: var(--perigo); border-color: var(--perigo); }
-.btn.mic.ouvindo svg { stroke: #fff; }
-@media (prefers-reduced-motion: no-preference) { .btn.mic.ouvindo { animation: pulsar 1.2s ease-in-out infinite; } }
-@keyframes pulsar { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--perigo) 25%, transparent); } }
 .abas { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; scrollbar-width: none; }
 .abas::-webkit-scrollbar { display: none; }
 .aba { flex: none; font: inherit; font-size: .9rem; font-weight: 700; min-height: 40px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--linha-forte); background: var(--superficie); color: var(--texto); cursor: pointer; }
@@ -258,3 +227,115 @@ li.faltou .caixa { border-style: dashed; }
 .selo-novo { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #fff; background: var(--destaque); padding: 2px 7px; border-radius: 99px; white-space: nowrap; }
 @media (prefers-color-scheme: dark) { .selo-novo { color: #0e1a13; } }
 .painel .fileira .btn { padding-left: 6px; padding-right: 6px; }
+
+/* Tela única: barra de adicionar embaixo, linha com caixinha, nome e quantidade */
+body { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+.marca { font-size: 1.35rem; gap: 8px; }
+.marca img { border-radius: 8px; }
+.icones { display: flex; gap: 6px; flex: none; }
+.icone-bt {
+  display: flex; align-items: center; gap: 6px; min-height: 40px; min-width: 44px; padding: 0 12px; border-radius: 99px;
+  border: 1px solid var(--linha-forte); background: var(--superficie); color: var(--texto); font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+}
+.icone-bt.so-icone { padding: 0; justify-content: center; }
+.icone-bt svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.icone-bt.so-icone svg { fill: currentColor; stroke: none; }
+.icone-bt:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
+
+li.item { position: relative; overflow: hidden; }
+.linha-item {
+  position: relative; z-index: 1; display: flex; align-items: center; min-height: 58px; background: var(--superficie);
+  touch-action: pan-y; transition: transform .17s ease-out; -webkit-tap-highlight-color: transparent;
+}
+li.arrastando .linha-item { transition: none; }
+.fundo-remover {
+  position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 18px;
+  background: var(--linha); color: var(--suave); font-weight: 700; font-size: .9rem;
+}
+li.vai-remover .fundo-remover { background: var(--perigo); color: #fff; }
+.marcar-bt { flex: none; align-self: stretch; width: 56px; display: grid; place-items: center; border: 0; background: transparent; cursor: pointer; padding: 0; }
+.marcar-bt:focus-visible .caixa { outline: 3px solid var(--destaque); outline-offset: 2px; }
+.marcar-bt[aria-checked="true"] .caixa { background: var(--destaque); border-color: var(--destaque); }
+.marcar-bt[aria-checked="true"] .caixa svg { opacity: 1; }
+.nome-bt {
+  flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  padding: 10px 6px 10px 0; border: 0; background: transparent; color: var(--texto); font: inherit; text-align: left; cursor: pointer;
+}
+.nome-bt .nome { flex: none; overflow-wrap: anywhere; }
+.nome-bt small { color: var(--suave); font-size: .85rem; overflow-wrap: anywhere; }
+.nome-bt small .preco { color: var(--laranja-texto); font-weight: 700; font-variant-numeric: tabular-nums; }
+.nome-bt:focus-visible, .qtd-bt:focus-visible { outline: 3px solid var(--destaque); outline-offset: -3px; border-radius: 10px; }
+.qtd-bt {
+  flex: none; margin-right: 10px; min-height: 40px; min-width: 52px; padding: 0 12px; border-radius: 99px; border: 0;
+  background: var(--destaque-leve); color: var(--texto); font: inherit; font-weight: 700; font-size: .95rem; font-variant-numeric: tabular-nums; white-space: nowrap; cursor: pointer;
+}
+.qtd-bt.vazia { background: transparent; color: var(--suave); font-weight: 400; font-size: .85rem; min-width: 44px; padding: 0 8px; }
+li.feito .nome-bt .nome { color: var(--feito); text-decoration: line-through; }
+li.feito .qtd-bt { background: transparent; color: var(--feito); }
+li.feito .qtd-bt.vazia { visibility: hidden; }
+li.faltou .nome-bt .nome { color: var(--feito); text-decoration: line-through dashed; }
+li.faltou .caixa { border-style: dashed; }
+.passo-linha { flex: none; margin-right: 8px; border-color: var(--destaque); background: var(--destaque-leve); }
+.passo-linha button { width: 44px; height: 44px; font-weight: 700; }
+.passo-linha span { min-width: 56px; font-size: .95rem; }
+@media (prefers-reduced-motion: no-preference) {
+  li.piscar .linha-item { animation: piscar 1.3s ease-out; }
+  @keyframes piscar { 0%, 40% { background: var(--destaque-leve); } }
+}
+
+.dica-gestos { margin-top: 16px; padding: 14px 16px; border-radius: 14px; background: var(--destaque-leve); display: grid; gap: 8px; }
+.dica-gestos ul { background: none; border: 0; border-radius: 0; display: grid; gap: 4px; padding-left: 2px; }
+.dica-gestos li { border: 0; font-size: .95rem; }
+.dica-gestos li::before { content: "• "; color: var(--destaque-forte); }
+.dica-gestos .btn { justify-self: start; min-height: 40px; padding: 6px 16px; }
+
+/* Barra de baixo */
+.barra-add {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--bg); border-top: 1px solid var(--linha);
+  padding: 10px max(12px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+}
+.barra-add > * { max-width: 560px; margin-inline: auto; }
+.entrada { display: flex; gap: 8px; align-items: center; }
+.entrada .texto { flex: 1; min-width: 0; height: 48px; border-radius: 99px; padding: 0 18px; font-size: 16px; border-color: var(--linha-forte); }
+.redondo {
+  flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--linha-forte); background: var(--superficie); color: var(--texto); padding: 0;
+}
+.redondo[hidden] { display: none; }
+.redondo svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.redondo.verde { background: var(--destaque-leve); border-color: var(--destaque); color: var(--destaque-forte); }
+.redondo.cheio { background: var(--destaque); border-color: var(--destaque); color: #fff; }
+@media (prefers-color-scheme: dark) { .redondo.cheio { color: #0e1a13; } }
+.redondo:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
+.sobe { display: grid; gap: 8px; margin-bottom: 10px; max-height: 40vh; overflow-y: auto; }
+.sobe[hidden] { display: none; }
+.chips.rolar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.chips.rolar::-webkit-scrollbar { display: none; }
+.chips.rolar .chip { flex: none; }
+.rotulo { flex: none; align-self: center; font-size: .8rem; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: .06em; }
+.aviso { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+
+/* Painéis */
+.painel-escolher, .painel-ditado { min-height: 70vh; align-content: start; }
+.painel .opcional { font-weight: 400; font-size: .8rem; }
+.obs-chips { margin-top: 4px; }
+.obs-chips .chip { min-height: 36px; padding: 6px 12px; font-size: .9rem; }
+.mais-campos { border-top: 1px solid var(--linha); padding-top: 10px; display: grid; gap: 10px; }
+.mais-campos summary { cursor: pointer; color: var(--suave); font-weight: 700; font-size: .9rem; min-height: 32px; }
+.mais-campos[open] { gap: 10px; }
+.mais-campos .campo + .campo { margin-top: 10px; }
+.lista-linha.armado small { color: var(--perigo); font-weight: 700; }
+
+/* Ditado */
+.estado-mic { padding-left: 18px; position: relative; }
+.estado-mic.ouvindo::before { content: ""; position: absolute; left: 0; top: .45em; width: 10px; height: 10px; border-radius: 50%; background: var(--perigo); }
+@media (prefers-reduced-motion: no-preference) { .estado-mic.ouvindo::before { animation: piscaMic 1.1s ease-in-out infinite; } @keyframes piscaMic { 50% { opacity: .3; } } }
+.ouvidos { max-height: 45vh; overflow-y: auto; }
+.ouvidos[hidden] { display: none; }
+.ouvidos li { display: flex; align-items: center; gap: 10px; padding: 8px 6px 8px 14px; min-height: 52px; }
+.ouvidos .nome { flex: 1; min-width: 0; }
+.ouvidos .nome small { display: block; color: var(--suave); font-size: .85rem; }
+.ouvidos .tirar { flex: none; width: 44px; height: 44px; border: 0; background: transparent; color: var(--suave); font-size: 1.5rem; cursor: pointer; border-radius: 10px; }
+.parcial { min-height: 1.4em; font-style: italic; }
+.parcial:empty { display: none; }
+.mic-bt.ouvindo { border-color: var(--perigo); color: var(--perigo); }

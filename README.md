@@ -8,8 +8,10 @@ Marca e design system: tokens, símbolo, ícones e componentes no design system 
 
 ## Como usar
 
-- **Editar → caixa de adicionar:** escreva ou fale vários itens de uma vez — `2 kg frango, pão, 6 leite e tomate`, `dois quilos de carne`, `meia dúzia de ovos`. A prévia mostra quantidade, unidade e categoria antes de entrar. Pelo microfone do teclado (Gboard) funciona igual.
-- **Falar pelo app:** o botão de microfone ao lado da caixa ouve um item de cada vez (Chrome no Android, precisa de internet); o texto fica na caixa para conferir na prévia antes de adicionar.
+- **Uma tela só:** marque na caixinha, toque no nome para observação, preço e "não tinha", toque na quantidade para usar − e +, arraste o item para o lado para tirar (com Desfazer). Não existe modo de edição.
+- **Barra de baixo:** escreva vários itens de uma vez — `2 kg frango, pão, 6 leite zero lactose`, `meia dúzia de ovos`. A prévia mostra quantidade, observação e categoria antes de entrar. O botão de grade abre listas prontas, a última compra e a escolha por categoria.
+- **Falar pelo app:** o microfone abre o ditado. Pode falar tudo seguido ("frango pão seis leites"): cada item vira uma linha na hora, dá para tirar com ×, e o microfone religa sozinho quando o Chrome do Android desliga (precisa de internet).
+- **Observações:** ditas ou digitadas junto com o nome ("leite zero lactose", "café da marca X") ou tocadas nas sugestões de cada categoria, nos detalhes do item.
 - **Escolher por categoria:** grade de itens por categoria, conforme o tipo da lista; um toque põe na lista, outro toque aumenta a quantidade.
 - **Listas prontas:** compra do mês, feira, café da manhã, churrasco, farmácia de casa, limpeza, pequenos reparos, aniversário e viagem. Escolha uma, desmarque o que não precisa e adicione tudo de uma vez.
 - **Sugestões:** completa o nome com o que você já comprou e um catálogo de ~280 itens, cada um com a unidade de costume (banana em dz, carne em kg, leite em cx).

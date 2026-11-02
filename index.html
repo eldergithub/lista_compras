@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#f3f5f1" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#121614" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
@@ -28,23 +28,35 @@
   <div class="app">
     <header>
       <div class="topo">
-        <h1 class="marca"><img src="/icons/icon.svg" alt="" width="32" height="32"><span><span class="na">Na</span>Lista</span></h1>
+        <h1 class="marca"><img src="/icons/icon.svg" alt="" width="28" height="28"><span><span class="na">Na</span>Lista</span></h1>
         <button class="lista-atual" id="bListas" type="button" aria-label="Trocar de lista"></button>
       </div>
-      <div class="meta"><span id="contagem"></span><span id="dica">Toque para marcar</span></div>
+      <div class="meta">
+        <span id="contagem"></span>
+        <div class="icones">
+          <button class="icone-bt" id="bEnviar" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 15V3M7.5 7.5L12 3l4.5 4.5"/></svg><span>Enviar</span></button>
+          <button class="icone-bt so-icone" id="bMais" type="button" aria-label="Mais opções"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+        </div>
+      </div>
       <div class="barra"><span id="barra"></span></div>
       <button class="gasto" id="gasto" type="button" hidden></button>
-      <div class="acoes">
-        <button class="btn" id="bEditar" type="button">Editar</button>
-        <button class="btn" id="bEnviar" type="button">Enviar</button>
-        <button class="btn" id="bImportar" type="button">Importar</button>
-      </div>
       <div class="faixa" id="faixa" hidden></div>
     </header>
-    <div id="adicionar"></div>
     <main id="lista"></main>
     <div class="tudo" id="tudo"></div>
     <button class="limpar" id="limpar" type="button"></button>
+  </div>
+  <div class="barra-add" id="barraAdd">
+    <div class="sobe" id="sobe" hidden>
+      <ul class="previa" id="nPrevia" hidden></ul>
+      <div class="chips rolar" id="nSug" aria-label="Sugestões"></div>
+    </div>
+    <form class="entrada" id="fNovo" autocomplete="off">
+      <input class="texto" id="nTexto" placeholder="Adicionar item…" enterkeyhint="enter" autocapitalize="sentences" aria-label="Adicionar item">
+      <button class="redondo verde" id="nMic" type="button" aria-label="Falar os itens"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <button class="redondo cheio" id="nEnviar" type="submit" aria-label="Adicionar" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg></button>
+      <button class="redondo" id="nEscolher" type="button" aria-label="Escolher itens por categoria ou lista pronta"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><path d="M16.75 13.5v6.5M13.5 16.75H20"/></svg></button>
+    </form>
   </div>
   <div class="fundo" id="fundo"><div class="painel" id="painel" role="dialog" aria-modal="true"></div></div>
   <div class="aviso" id="aviso" role="status"></div>

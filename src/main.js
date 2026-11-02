@@ -17,6 +17,8 @@ import { registroDaCompra, guardarCompra, guardarOuAtualizar, totalDoMes, itensQ
 import { montarBackup, lerBackup, nomeDoArquivo } from './core/backup.js';
 import { modelosPara, itensDoModelo } from './core/modelos.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from './core/retorno.js';
+import { sugestoesDeObs, alternarObs, temObs } from './core/observacoes.js';
+import { trechoNovo, juntarOuvidos } from './core/fala.js';
 import { registrar, doHistorico, sugerir, deSempre, gradeDaCategoria } from './core/historico.js';
 import {
   ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra, resolvido,
@@ -37,7 +39,6 @@ let lista = listaAtiva(estado);
 let itens = lista.itens;
 let historico = carregarHistorico();
 let compras = carregarCompras();
-let editando = false;
 let orcamento = carregarOrcamento();
 function guardar() {
   lista.itens = itens;
@@ -90,125 +91,225 @@ function aviso(msg, podeDesfazer = false) {
 const marcarParaDesfazer = () => { antesDeDesfazer = { lista: lista.id, itens: copiaDe(itens) }; };
 
 // ---------------------------------------------------------------- lista
+// Uma tela só: marcar, adicionar, tirar e ajustar, sem modo de edição.
+let ajustando = null; // item com − e + abertos na própria linha
+const DICA_GESTOS = 'nalista-dica-gestos-v1';
+const lerMarca = (k) => { try { return localStorage.getItem(k) === '1'; } catch { return true; } };
+const gravarMarca = (k) => { try { localStorage.setItem(k, '1'); } catch { /* ok */ } };
+
 function desenhar() {
   const quadro = $('lista');
   quadro.innerHTML = '';
   if (!itens.length) {
-    quadro.innerHTML = editando
-      ? '<p class="vazio">Escreva ou fale os itens na caixa acima.</p>'
-      : '<div class="vazio"><p>Lista vazia. Monte do zero em <b>Editar</b>, cole uma em <b>Importar</b> ou comece por uma lista pronta.</p><button class="btn primario grande" id="vProntas" type="button">Começar com uma lista pronta</button></div>';
+    quadro.innerHTML = '<div class="vazio"><p><b>A lista está vazia.</b><br>Escreva ou fale na barra aqui embaixo, ou comece por uma lista pronta.</p><button class="btn primario grande" id="vProntas" type="button">Começar com uma lista pronta</button></div>';
+  } else if (!lerMarca(DICA_GESTOS)) {
+    const d = document.createElement('div');
+    d.className = 'dica-gestos';
+    d.innerHTML = `<b>Como usar a lista</b>
+      <ul><li>Toque na <b>caixinha</b> para marcar.</li><li>Toque no <b>nome</b> para observação, preço e mais.</li><li>Toque na <b>quantidade</b> para mudar.</li><li><b>Arraste</b> o item para o lado para tirar.</li></ul>
+      <button class="btn" id="dgOk" type="button">Entendi</button>`;
+    quadro.appendChild(d);
+    $('dgOk').onclick = () => { gravarMarca(DICA_GESTOS); d.remove(); };
   }
-  const grupos = editando
-    ? categoriasEmUso(itens).map((cat) => [cat, itens.filter((i) => i.cat === cat)])
-    : ordenarParaCompra(itens);
-  for (const [cat, doGrupo] of grupos) {
+  for (const [cat, doGrupo] of ordenarParaCompra(itens)) {
     const sec = document.createElement('section');
-    const contagem = editando ? doGrupo.length : `${doGrupo.filter(resolvido).length}/${doGrupo.length}`;
-    sec.innerHTML = `<h2><span>${esc(cat)}</span><span>${contagem}</span></h2>`;
+    sec.innerHTML = `<h2><span>${esc(cat)}</span><span>${doGrupo.filter(resolvido).length}/${doGrupo.length}</span></h2>`;
     const ul = document.createElement('ul');
-    for (const item of doGrupo) ul.appendChild(editando ? linhaEdicao(item) : linhaCompra(item));
+    for (const item of doGrupo) ul.appendChild(linhaItem(item));
     sec.appendChild(ul);
     quadro.appendChild(sec);
   }
-  if ($('vProntas')) $('vProntas').onclick = () => { editando = true; desenhar(); painelModelos(); };
-  desenharMontagem();
+  if ($('vProntas')) $('vProntas').onclick = painelModelos;
   atualizarContagem();
   $('bListas').innerHTML = `${iconeTipo(lista.tipo)}<span>${esc(lista.nome)}</span>${estado.listas.length > 1 ? `<span class="cinza">${estado.listas.length}</span>` : ''}<svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
   document.title = `${lista.nome} · NaLista`;
-  $('bEditar').textContent = editando ? 'Pronto' : 'Editar';
-  $('bEditar').classList.toggle('primario', editando);
   rearmarLimpar();
   manterTelaAcesa();
+  if (painelAtual === 'escolher') painelEscolher();
 }
 
-const textoNome = (item) => `${esc(item.nome)}${item.obs ? `<small>${esc(item.obs)}</small>` : ''}`;
-
-function linhaCompra(item) {
+function linhaItem(item) {
   const li = document.createElement('li');
+  const faltou = item.faltou && !item.feito;
+  li.className = 'item' + (item.feito ? ' feito' : '') + (faltou ? ' faltou' : '');
+  li.dataset.nome = item.nome.toLowerCase();
   const q = formatarQtd(item);
   const preco = typeof item.preco === 'number' ? formatarPreco(item.preco) : '';
-  if (item.faltou && !item.feito) li.className = 'faltou';
-  li.innerHTML = `<div class="linha-compra"><label class="linha"><input type="checkbox" ${item.feito ? 'checked' : ''}><span class="caixa">${MARCA}</span><span class="nome">${textoNome(item)}</span>${item.novo && !resolvido(item) ? '<span class="selo-novo">novo</span>' : ''}${q ? `<span class="qtd">${q}</span>` : ''}${li.className ? '<span class="tag-faltou">não tinha</span>' : ''}</label><button class="preco-bt${preco ? ' tem' : ''}" type="button" aria-label="Preço ou não tinha: ${esc(item.nome)}">${preco || 'R$'}</button></div>`;
-  li.querySelector('input').addEventListener('change', (e) => {
-    if (item.faltou && !item.feito) { item.faltou = false; e.target.checked = false; }
-    else { item.feito = e.target.checked; if (item.feito) { item.faltou = false; delete item.novo; } }
+  const detalhe = [item.obs ? esc(item.obs) : '', preco ? `<span class="preco">${preco}</span>` : ''].filter(Boolean).join(' · ');
+  const abrindo = ajustando === item;
+  li.innerHTML = `<div class="fundo-remover" aria-hidden="true"><span>Remover</span><span>Remover</span></div>
+    <div class="linha-item">
+      <button class="marcar-bt" type="button" role="checkbox" aria-checked="${!!item.feito}" aria-label="${faltou ? 'Não tinha: ' : ''}${esc(item.nome)}"><span class="caixa">${MARCA}</span></button>
+      <button class="nome-bt" type="button" aria-label="Detalhes de ${esc(item.nome)}"><span class="nome">${esc(item.nome)}${item.novo && !resolvido(item) ? ' <span class="selo-novo">novo</span>' : ''}${faltou ? ' <span class="tag-faltou">não tinha</span>' : ''}</span>${detalhe ? `<small>${detalhe}</small>` : ''}</button>
+      ${abrindo
+        ? '<div class="passo passo-linha"><button type="button" aria-label="Menos">−</button><span aria-live="polite"></span><button type="button" aria-label="Mais">+</button></div>'
+        : `<button class="qtd-bt${q ? '' : ' vazia'}" type="button" aria-label="Quantidade de ${esc(item.nome)}: ${q || 'sem quantidade'}">${q || '+ qtd'}</button>`}
+    </div>`;
+
+  li.querySelector('.marcar-bt').onclick = (e) => {
+    const bt = e.currentTarget;
+    if (item.faltou && !item.feito) item.faltou = false;
+    else { item.feito = !item.feito; if (item.feito) { item.faltou = false; delete item.novo; } }
+    bt.setAttribute('aria-checked', String(!!item.feito));
+    li.classList.toggle('feito', !!item.feito);
+    li.classList.remove('faltou');
     guardar(); atualizarContagem();
     // Dá tempo de ver a marca antes de o item descer para o fim da categoria.
-    clearTimeout(linhaCompra.t);
-    linhaCompra.t = setTimeout(desenhar, 350);
+    clearTimeout(linhaItem.t);
+    linhaItem.t = setTimeout(desenhar, 450);
+  };
+  li.querySelector('.nome-bt').onclick = () => painelItem(item);
+  if (abrindo) ligarPassoDaLinha(li, item);
+  else li.querySelector('.qtd-bt').onclick = () => { ajustando = item; desenhar(); armarFimDoAjuste(); };
+  arrastarParaRemover(li, item);
+  return li;
+}
+
+/** − e + direto na linha. Fecha sozinho depois de uns segundos sem mexer. */
+function ligarPassoDaLinha(li, item) {
+  const [menos, mais] = li.querySelectorAll('.passo-linha button');
+  const valor = li.querySelector('.passo-linha span');
+  const passo = () => PASSO[item.un] || 1;
+  const mostrar = () => { valor.textContent = item.qtd == null ? '–' : formatarQtd(item); };
+  const mudou = () => { mostrar(); guardar(); lembrar([item], false); armarFimDoAjuste(); };
+  mais.onclick = () => { item.qtd = item.qtd == null ? passo() : item.qtd + passo(); mudou(); };
+  menos.onclick = () => {
+    if (item.qtd == null) return;
+    item.qtd -= passo();
+    if (item.qtd <= 0.0001) item.qtd = null;
+    mudou();
+  };
+  mostrar();
+}
+function armarFimDoAjuste() {
+  clearTimeout(armarFimDoAjuste.t);
+  armarFimDoAjuste.t = setTimeout(fecharAjuste, 3500);
+}
+function fecharAjuste() {
+  clearTimeout(armarFimDoAjuste.t);
+  if (!ajustando) return;
+  ajustando = null; desenhar();
+}
+// Tocar fora do − e + fecha o ajuste.
+document.addEventListener('pointerdown', (e) => {
+  if (ajustando && !e.target.closest('.passo-linha')) fecharAjuste();
+}, true);
+
+/** Arrastar a linha para o lado tira o item da lista (com Desfazer). */
+function arrastarParaRemover(li, item) {
+  const linha = li.querySelector('.linha-item');
+  let x0 = null, y0 = 0, dx = 0, arrastando = false, id = null;
+  const limite = () => linha.offsetWidth * 0.35;
+  linha.addEventListener('pointerdown', (e) => {
+    if (e.button || e.target.closest('.passo-linha')) return;
+    x0 = e.clientX; y0 = e.clientY; dx = 0; arrastando = false; id = e.pointerId;
   });
-  li.querySelector('.preco-bt').onclick = () => painelDoItemNaCompra(item);
-  return li;
+  linha.addEventListener('pointermove', (e) => {
+    if (x0 == null || e.pointerId !== id) return;
+    const mx = e.clientX - x0, my = e.clientY - y0;
+    if (!arrastando) {
+      if (Math.abs(my) > 14 && Math.abs(my) > Math.abs(mx)) { x0 = null; return; }
+      if (Math.abs(mx) < 14 || Math.abs(mx) < Math.abs(my) * 1.4) return;
+      arrastando = true;
+      try { linha.setPointerCapture(id); } catch { /* ok */ }
+      li.classList.add('arrastando');
+    }
+    dx = mx;
+    linha.style.transform = `translateX(${dx}px)`;
+    li.classList.toggle('vai-remover', Math.abs(dx) > limite());
+  });
+  const soltar = (cancelou) => {
+    if (x0 == null) return;
+    x0 = null;
+    if (!arrastando) return;
+    arrastando = false;
+    li.dataset.arrastou = '1';
+    setTimeout(() => { delete li.dataset.arrastou; }, 80);
+    li.classList.remove('arrastando');
+    if (!cancelou && Math.abs(dx) > limite()) {
+      linha.style.transform = `translateX(${dx > 0 ? 110 : -110}%)`;
+      setTimeout(() => removerItem(item), 170);
+    } else {
+      linha.style.transform = '';
+      li.classList.remove('vai-remover');
+    }
+  };
+  linha.addEventListener('pointerup', () => soltar(false));
+  linha.addEventListener('pointercancel', () => soltar(true));
+  // O toque que termina um arrasto não marca nem abre o item.
+  li.addEventListener('click', (e) => { if (li.dataset.arrastou) { e.stopPropagation(); e.preventDefault(); } }, true);
 }
 
-/** Preço do item e "não tinha", na hora da compra. */
-function painelDoItemNaCompra(item) {
-  const q = formatarQtd(item);
-  const valor = typeof item.preco === 'number' ? String(item.preco.toFixed(2)).replace('.', ',') : '';
-  abrirPainel(`<h3>${esc(item.nome)}${q ? ` <span class="cinza">${q}</span>` : ''}</h3>
-    <label class="campo">Quanto deu este item?<input class="texto preco-campo" id="pValor" inputmode="decimal" placeholder="R$ 0,00" value="${valor}" autocomplete="off"></label>
-    <p>Use o valor total do item, o que aparece na etiqueta ou na balança.</p>
-    <button class="btn primario grande" id="pPego" type="button">Salvar e marcar como pego</button>
-    <div class="fileira">
-      <button class="btn" id="pFaltou" type="button">${item.faltou && !item.feito ? 'Achei, tinha sim' : 'Não tinha'}</button>
-      ${typeof item.preco === 'number' ? '<button class="btn" id="pLimpar" type="button">Tirar o preço</button>' : ''}
+function removerItem(item) {
+  marcarParaDesfazer();
+  itens = itens.filter((x) => x !== item);
+  if (ajustando === item) ajustando = null;
+  guardar(); desenhar();
+  aviso(`${item.nome} removido`, true);
+}
+
+// ---------------------------------------------------------------- detalhes do item
+/** Tudo de um item num lugar só: nome, observação, quantidade, preço, "não tinha". */
+function painelItem(item) {
+  const rascunho = { ...item };
+  const cats = CATEGORIAS.includes(item.cat) ? CATEGORIAS : [...CATEGORIAS, item.cat];
+  const valor = typeof item.preco === 'number' ? item.preco.toFixed(2).replace('.', ',') : '';
+  const faltou = item.faltou && !item.feito;
+  abrirPainel(`<h3>${esc(item.nome)}</h3>
+    <div class="campo">Observação
+      <input class="texto" id="dObs" value="${esc(item.obs || '')}" placeholder="Escreva ou toque numa sugestão" autocomplete="off" enterkeyhint="done">
+      <div class="chips obs-chips" id="dChips"></div>
     </div>
+    <div class="campo">Quantidade<div class="fileira"><div class="passo"><button type="button" aria-label="Menos">−</button><span></span><button type="button" aria-label="Mais">+</button></div><select id="dUn" aria-label="Unidade">${UNIDADES.map((u) => `<option ${u === item.un ? 'selected' : ''}>${u}</option>`).join('')}</select></div></div>
+    <label class="campo"><span>Preço do item <span class="opcional">· opcional</span></span><input class="texto" id="dPreco" inputmode="decimal" placeholder="R$ 0,00" value="${valor}" autocomplete="off" enterkeyhint="done"></label>
+    <button class="btn primario grande" id="dSalvar" type="button">Salvar</button>
+    <div class="fileira">
+      <button class="btn" id="dFaltou" type="button">${faltou ? 'Achei, tinha sim' : 'Não tinha'}</button>
+      <button class="btn perigo" id="dRemover" type="button">Tirar da lista</button>
+    </div>
+    <details class="mais-campos"><summary>Nome e categoria</summary>
+      <label class="campo">Nome<input class="texto" id="dNome" value="${esc(item.nome)}" autocomplete="off"></label>
+      <label class="campo">Categoria<select id="dCat">${cats.map((c) => `<option ${c === item.cat ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+    </details>
     <button class="btn discreto" data-fechar type="button">Cancelar</button>`);
-  const campo = $('pValor');
-  setTimeout(() => campo.focus(), 50);
-  const salvarPego = () => {
-    const preco = lerPreco(campo.value);
-    if (campo.value.trim() && preco == null) { aviso('Valor inválido'); campo.focus(); return; }
-    if (preco != null) item.preco = preco; else delete item.preco;
-    item.feito = true; item.faltou = false;
-    guardar(); fecharPainel(); desenhar();
+  const obs = $('dObs'), preco = $('dPreco'), salvar = $('dSalvar');
+  const desenharChips = () => {
+    $('dChips').innerHTML = sugestoesDeObs($('dCat').value).map((s) =>
+      `<button type="button" class="chip escolha" aria-pressed="${temObs(obs.value, s)}" data-obs="${esc(s)}">${esc(s)}</button>`).join('');
+    $('dChips').querySelectorAll('[data-obs]').forEach((b) => {
+      b.onclick = () => { obs.value = alternarObs(obs.value, b.dataset.obs); desenharChips(); };
+    });
   };
-  $('pPego').onclick = salvarPego;
-  campo.addEventListener('keydown', (e) => { if (e.key === 'Enter') salvarPego(); });
-  $('pFaltou').onclick = () => {
+  desenharChips();
+  obs.addEventListener('input', desenharChips);
+  $('dCat').onchange = desenharChips;
+  const [menos, mais] = painel.querySelectorAll('.passo button');
+  ligarPasso(rascunho, menos, mais, painel.querySelector('.passo span'), $('dUn'), () => {});
+  // Anotar o preço de um item que ainda não foi pego é sinal de que ele está no carrinho.
+  const rotulo = () => { salvar.textContent = preco.value.trim() && !item.feito ? 'Salvar e marcar como pego' : 'Salvar'; };
+  preco.addEventListener('input', rotulo);
+  rotulo();
+  const gravar = () => {
+    const nome = $('dNome').value.trim() || item.nome;
+    const p = lerPreco(preco.value);
+    if (preco.value.trim() && p == null) { aviso('Esse preço não está certo'); preco.focus(); return; }
+    Object.assign(item, { nome, cat: $('dCat').value, qtd: rascunho.qtd, un: rascunho.un });
+    const o = obs.value.trim().replace(/,\s*$/, '');
+    if (o) item.obs = o; else delete item.obs;
+    if (p != null) { item.preco = p; if (!item.feito) { item.feito = true; item.faltou = false; delete item.novo; } } else delete item.preco;
+    guardar(); lembrar([item], false); fecharPainel(); desenhar();
+  };
+  salvar.onclick = gravar;
+  [obs, preco].forEach((c) => c.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); gravar(); } }));
+  $('dFaltou').onclick = () => {
     if (item.faltou && !item.feito) item.faltou = false;
-    else { item.faltou = true; item.feito = false; delete item.preco; }
+    else { item.faltou = true; item.feito = false; delete item.preco; delete item.novo; }
     guardar(); fecharPainel(); desenhar();
   };
-  if ($('pLimpar')) $('pLimpar').onclick = () => { delete item.preco; guardar(); fecharPainel(); desenhar(); };
+  $('dRemover').onclick = () => { fecharPainel(); removerItem(item); };
 }
 
-function painelOrcamento() {
-  const valor = orcamento ? String(orcamento.toFixed(2)).replace('.', ',') : '';
-  abrirPainel(`<h3>Orçamento da compra</h3>
-    <p>O total fica em destaque quando passar do valor.</p>
-    <label class="campo">Quanto pretende gastar?<input class="texto preco-campo" id="oValor" inputmode="decimal" placeholder="R$ 0,00" value="${valor}" autocomplete="off"></label>
-    <div class="fileira">
-      <button class="btn primario" id="oSalvar" type="button">Salvar</button>
-      ${orcamento ? '<button class="btn" id="oTirar" type="button">Sem orçamento</button>' : ''}
-    </div>
-    <button class="btn discreto" data-fechar type="button">Cancelar</button>`);
-  const definir = (v) => { orcamento = v; salvarOrcamento(v); fecharPainel(); atualizarContagem(); };
-  $('oSalvar').onclick = () => {
-    const v = lerPreco($('oValor').value);
-    if (!v) { aviso('Digite um valor'); return; }
-    definir(v);
-  };
-  if ($('oTirar')) $('oTirar').onclick = () => definir(null);
-}
-$('gasto').onclick = painelOrcamento;
-
-function linhaEdicao(item) {
-  const li = document.createElement('li');
-  li.innerHTML = `<div class="linha-ed"><button class="nome nome-bt" type="button">${textoNome(item)}</button><div class="passo"><button type="button" aria-label="Menos">−</button><span></span><button type="button" aria-label="Mais">+</button></div><select aria-label="Unidade">${UNIDADES.map((u) => `<option ${u === item.un ? 'selected' : ''}>${u}</option>`).join('')}</select><button class="remover" type="button" aria-label="Remover ${esc(item.nome)}">×</button></div>`;
-  const [menos, mais] = li.querySelectorAll('.passo button');
-  const valor = li.querySelector('.passo span');
-  ligarPasso(item, menos, mais, valor, li.querySelector('select'), () => { guardar(); lembrar([item], false); });
-  li.querySelector('.nome-bt').onclick = () => editarItem(item);
-  li.querySelector('.remover').onclick = () => {
-    marcarParaDesfazer();
-    itens = itens.filter((x) => x !== item); guardar(); desenhar();
-    aviso(`${item.nome} removido`, true);
-  };
-  return li;
-}
-
-/** Botões − e + e a unidade. Serve para a linha e para o painel do item. */
+/** Botões − e + e a unidade, no painel do item. */
 function ligarPasso(item, menos, mais, valor, unidade, aoMudar) {
   const passo = () => PASSO[item.un] || 1;
   const mostrar = (mudou = true) => {
@@ -232,7 +333,7 @@ function ligarPasso(item, menos, mais, valor, unidade, aoMudar) {
   mostrar(false);
 }
 
-// ---------------------------------------------------------------- montar a lista
+// ---------------------------------------------------------------- adicionar
 /** Transforma o que foi lido em itens, com a unidade e a categoria que a pessoa costuma usar. */
 function paraItens(lidos) {
   return lidos.map((l) => {
@@ -251,6 +352,7 @@ function adicionar(novos) {
   lista.compraRegistrada = false;
   lembrar(novos);
   guardar(); desenhar();
+  mostrarItem(novos[novos.length - 1]);
   const novosDeVerdade = novos.length - r.somados.length;
   const partes = [];
   if (novosDeVerdade) partes.push(novos.length === 1 ? `${novos[0].nome} adicionado` : plural(novosDeVerdade, 'item adicionado', 'itens adicionados'));
@@ -258,74 +360,132 @@ function adicionar(novos) {
   aviso(partes.join('. '), true);
 }
 
+/** Rola até o item e faz ele piscar: quem adicionou vê onde ele foi parar. */
+function mostrarItem(item) {
+  const li = $('lista').querySelector(`li[data-nome="${CSS.escape(item.nome.toLowerCase())}"]`);
+  if (!li) return;
+  li.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  li.classList.add('piscar');
+  setTimeout(() => li.classList.remove('piscar'), 1400);
+}
+
 // Reconhecimento de fala do navegador (Chrome no Android). Sem ele, fica a dica do microfone do teclado.
 const Reconhecimento = window.SpeechRecognition || window.webkitSpeechRecognition;
-const MICROFONE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
-let categoriaDaGrade = null;
-let ouvindo = null;
 
-function desenharMontagem() {
-  const caixa = $('adicionar');
-  // O que estava sendo digitado sobrevive ao redesenho (um toque na grade redesenha a lista).
-  const digitado = $('nTexto')?.value || '';
-  if (!editando) { pararDeOuvir(); caixa.innerHTML = ''; return; }
+/** A barra de baixo: monta uma vez e fica sempre lá. */
+function montarBarra() {
+  const campo = $('nTexto');
+  const atualizarBotoes = () => {
+    const tem = !!campo.value.trim();
+    $('nEnviar').hidden = !tem;
+    $('nMic').hidden = tem;
+  };
+  campo.addEventListener('input', () => { atualizarBotoes(); atualizarPrevia(); });
+  campo.addEventListener('focus', atualizarPrevia);
+  campo.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== campo) esconderSobe(); }, 150));
+  $('fNovo').onsubmit = (e) => {
+    e.preventDefault();
+    const novos = paraItens(lerEntrada(campo.value));
+    if (!novos.length) { campo.focus(); return; }
+    campo.value = '';
+    atualizarBotoes();
+    adicionar(novos);
+    atualizarPrevia();
+    campo.focus();
+  };
+  $('nMic').onclick = () => {
+    if (Reconhecimento) { painelDitado(); return; }
+    campo.focus();
+    aviso('Use o microfone do teclado para falar os itens');
+  };
+  $('nEscolher').onclick = painelEscolher;
+  // Toque nas sugestões não tira o foco da caixa (o teclado continua aberto).
+  $('sobe').addEventListener('pointerdown', (e) => { if (e.target.closest('button')) e.preventDefault(); });
+  atualizarBotoes();
+}
+
+function esconderSobe() { $('sobe').hidden = true; }
+
+/** Acima da barra: o que vai entrar (prévia), sugestões da palavra e, com a caixa vazia, os itens de sempre. */
+function atualizarPrevia() {
+  const campo = $('nTexto');
+  const valor = campo.value;
+  const sobe = $('sobe'), sug = $('nSug'), previa = $('nPrevia');
+  sug.innerHTML = '';
+  previa.innerHTML = '';
+  if (!valor.trim()) {
+    const sempre = deSempre(historico, itens).slice(0, 10);
+    sobe.hidden = !sempre.length || document.activeElement !== campo;
+    if (!sempre.length) return;
+    sug.innerHTML = `<span class="rotulo">De sempre</span>${sempre.map((h, n) => `<button class="chip" type="button" data-sempre="${n}">+ ${esc(h.nome)}</button>`).join('')}`;
+    sug.querySelectorAll('[data-sempre]').forEach((b) => {
+      b.onclick = () => { const h = sempre[Number(b.dataset.sempre)]; adicionar([criarItem(h.nome, h.cat, h.qtd, h.un)]); atualizarPrevia(); };
+    });
+    return;
+  }
+  sobe.hidden = false;
+  const novos = paraItens(lerEntrada(valor));
+  previa.hidden = !novos.length;
+  previa.innerHTML = novos.map((i) => {
+    const ja = itens.some((x) => x.nome.toLowerCase() === i.nome.toLowerCase());
+    const q = formatarQtd(i);
+    return `<li><b>${esc(i.nome)}</b>${q ? ` <span class="qtd">${q}</span>` : ''}${i.obs ? ` <span class="cinza">(${esc(i.obs)})</span>` : ''}${ja ? ' <span class="ja">já na lista: soma</span>' : ''}</li>`;
+  }).join('');
+
+  // Só sugere enquanto a pessoa ainda está escrevendo o último item.
+  if (/[,;]\s*$/.test(valor) || /\se\s*$/.test(valor)) return;
+  const pedacos = separarItens(valor);
+  const ultimo = pedacos[pedacos.length - 1];
+  if (!ultimo) return;
+  const lido = lerPedaco(ultimo);
+  if (!lido || lido.digitado.length < 2) return;
+  const opcoes = sugerir(historico, lido.digitado, 5).filter((o) => o.nome.toLowerCase() !== lido.digitado.toLowerCase());
+  const inicioDoPedaco = valor.lastIndexOf(ultimo);
+  const antesDoNome = ultimo.slice(0, ultimo.lastIndexOf(lido.digitado));
+  for (const o of opcoes) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (o.doHistorico ? ' meu' : '');
+    b.innerHTML = esc(o.nome) + (o.doHistorico ? ' <span class="cinza">já comprou</span>' : '');
+    b.onclick = () => {
+      campo.value = valor.slice(0, inicioDoPedaco) + antesDoNome + o.nome + ', ';
+      campo.focus();
+      campo.dispatchEvent(new Event('input'));
+    };
+    sug.appendChild(b);
+  }
+}
+
+/** Escolher sem digitar: listas prontas, repetir a última, de sempre e a grade por categoria. */
+let categoriaDaGrade = null;
+function painelEscolher() {
+  const rolagem = painelAtual === 'escolher' ? painel.scrollTop : 0;
   const sempre = deSempre(historico, itens);
   const faltaNaLista = lista.ultima ? juntar(itens, lista.ultima).length - itens.length : 0;
   const cats = CATEGORIAS_POR_TIPO[lista.tipo] || CATEGORIAS_POR_TIPO.outros;
   if (!cats.includes(categoriaDaGrade)) categoriaDaGrade = cats[0];
   const naLista = new Map(itens.map((i) => [i.nome.toLowerCase(), i]));
   const grade = gradeDaCategoria(historico, categoriaDaGrade);
-  caixa.innerHTML = `
-    <form class="novo" id="fNovo" autocomplete="off">
-      <div class="entrada${Reconhecimento ? ' com-mic' : ''}">
-        <input class="texto" id="nTexto" placeholder="Ex.: 2 kg frango, pão, 6 leite" enterkeyhint="done" autocapitalize="sentences" aria-label="Itens para adicionar">
-        ${Reconhecimento ? `<button class="btn mic" id="nMic" type="button" aria-label="Falar os itens" aria-pressed="false">${MICROFONE}</button>` : ''}
-        <button class="btn primario" type="submit">Adicionar</button>
-      </div>
-      <div class="chips" id="nSug" aria-label="Sugestões"></div>
-      <ul class="previa" id="nPrevia" hidden></ul>
-      <p class="obs" id="nDica">${Reconhecimento
-        ? 'Toque no microfone e fale um item de cada vez, com uma pausa entre eles: “dois quilos de frango… pão… seis leites”. Confira e toque em Adicionar.'
-        : 'Prefere falar? Toque no microfone do teclado e diga, por exemplo: “dois quilos de frango, pão e seis leites”.'}</p>
-    </form>
-    ${sempre.length ? `<div class="atalho"><h2><span>Itens de sempre</span></h2><div class="chips">${sempre.map((h, n) => `<button class="chip" type="button" data-sempre="${n}">+ ${esc(h.nome)}${h.qtd != null ? ` <span class="cinza">${formatarNumero(h.qtd)} ${esc(h.un)}</span>` : ''}</button>`).join('')}</div></div>` : ''}
+  abrirPainel(`<h3>Escolher itens</h3>
     <div class="atalhos-linha">
-      <button class="btn ${itens.length ? '' : 'primario'}" id="nProntas" type="button">Listas prontas</button>
-      ${faltaNaLista > 0 ? `<button class="btn" id="nRepetir" type="button">Repetir a última <span class="cinza">(+${faltaNaLista})</span></button>` : ''}
+      <button class="btn" id="eProntas" type="button">Listas prontas</button>
+      ${faltaNaLista > 0 ? `<button class="btn" id="eRepetir" type="button">Repetir a última <span class="cinza">(+${faltaNaLista})</span></button>` : ''}
     </div>
-    <div class="atalho grade-bloco">
-      <h2><span>Escolher por categoria</span></h2>
-      <div class="abas" role="tablist" aria-label="Categorias">${cats.map((c) => `<button type="button" role="tab" class="aba" aria-selected="${c === categoriaDaGrade}" data-aba="${esc(c)}">${esc(c)}</button>`).join('')}</div>
-      <div class="grade" role="tabpanel" aria-label="${esc(categoriaDaGrade)}">${grade.map((g, n) => {
-        const ja = naLista.get(g.nome.toLowerCase());
-        return `<button type="button" class="grade-item${ja ? ' tem' : ''}" data-grade="${n}"><span>${esc(g.nome)}</span>${ja ? `<span class="grade-qtd">${ja.qtd != null ? formatarQtd(ja) : '✓'}</span>` : ''}</button>`;
-      }).join('')}</div>
-      <p class="obs">Um toque põe na lista; outro toque aumenta a quantidade.</p>
-    </div>`;
-
-  const campo = $('nTexto');
-  campo.value = digitado;
-  if (digitado) atualizarPrevia(campo);
-  campo.addEventListener('input', () => atualizarPrevia(campo));
-  $('fNovo').onsubmit = (e) => {
-    e.preventDefault();
-    pararDeOuvir();
-    const novos = paraItens(lerEntrada(campo.value));
-    if (!novos.length) { campo.focus(); return; }
-    campo.value = '';
-    adicionar(novos);
-    $('nTexto').focus();
-  };
-  if ($('nMic')) $('nMic').onclick = () => (ouvindo ? pararDeOuvir() : ouvir());
-  caixa.querySelectorAll('[data-sempre]').forEach((b) => {
-    b.onclick = () => {
-      const h = sempre[Number(b.dataset.sempre)];
-      adicionar([criarItem(h.nome, h.cat, h.qtd, h.un)]);
-    };
-  });
-  $('nProntas').onclick = painelModelos;
-  if ($('nRepetir')) {
-    $('nRepetir').onclick = () => {
+    ${sempre.length ? `<h4 class="sub">De sempre</h4><div class="chips">${sempre.map((h, n) => `<button class="chip" type="button" data-sempre="${n}">+ ${esc(h.nome)}${h.qtd != null ? ` <span class="cinza">${formatarNumero(h.qtd)} ${esc(h.un)}</span>` : ''}</button>`).join('')}</div>` : ''}
+    <h4 class="sub">Por categoria</h4>
+    <div class="abas" role="tablist" aria-label="Categorias">${cats.map((c) => `<button type="button" role="tab" class="aba" aria-selected="${c === categoriaDaGrade}" data-aba="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+    <div class="grade" role="tabpanel" aria-label="${esc(categoriaDaGrade)}">${grade.map((g, n) => {
+      const ja = naLista.get(g.nome.toLowerCase());
+      return `<button type="button" class="grade-item${ja ? ' tem' : ''}" data-grade="${n}"><span>${esc(g.nome)}</span>${ja ? `<span class="grade-qtd">${ja.qtd != null ? formatarQtd(ja) : '✓'}</span>` : ''}</button>`;
+    }).join('')}</div>
+    <p class="obs">Um toque põe na lista; outro toque soma mais.</p>
+    <button class="btn primario grande" data-fechar type="button">Pronto · ${plural(itens.length, 'item', 'itens')} na lista</button>`, 'escolher');
+  painel.scrollTop = rolagem;
+  const abaAtual = painel.querySelector('.aba[aria-selected="true"]');
+  if (abaAtual) abaAtual.parentElement.scrollLeft = abaAtual.offsetLeft - abaAtual.parentElement.offsetLeft - 16;
+  $('eProntas').onclick = painelModelos;
+  if ($('eRepetir')) {
+    $('eRepetir').onclick = () => {
       marcarParaDesfazer();
       const antes = itens.length;
       itens = juntar(itens, novaCompra(lista.ultima));
@@ -333,15 +493,11 @@ function desenharMontagem() {
       aviso(`${plural(itens.length - antes, 'item voltou', 'itens voltaram')} da última compra`, true);
     };
   }
-  // A aba escolhida fica à vista, mesmo quando está lá no fim da fileira.
-  const abaAtual = caixa.querySelector('.aba[aria-selected="true"]');
-  if (abaAtual) abaAtual.parentElement.scrollLeft = abaAtual.offsetLeft - abaAtual.parentElement.offsetLeft - 16;
-  caixa.querySelectorAll('[data-aba]').forEach((b) => {
-    b.onclick = () => { categoriaDaGrade = b.dataset.aba; desenharMontagem(); };
+  painel.querySelectorAll('[data-sempre]').forEach((b) => {
+    b.onclick = () => { const h = sempre[Number(b.dataset.sempre)]; adicionar([criarItem(h.nome, h.cat, h.qtd, h.un)]); };
   });
-  caixa.querySelectorAll('[data-grade]').forEach((b) => {
-    b.onclick = () => tocarNaGrade(grade[Number(b.dataset.grade)]);
-  });
+  painel.querySelectorAll('[data-aba]').forEach((b) => { b.onclick = () => { categoriaDaGrade = b.dataset.aba; painelEscolher(); }; });
+  painel.querySelectorAll('[data-grade]').forEach((b) => { b.onclick = () => tocarNaGrade(grade[Number(b.dataset.grade)]); });
 }
 
 /** Grade: o primeiro toque põe o item na lista; os seguintes somam um passo da unidade. */
@@ -366,146 +522,139 @@ function tocarNaGrade(g) {
   aviso(`${ja.nome}: ${formatarQtd(ja)}`, true);
 }
 
+// ---------------------------------------------------------------- ditado
 /**
- * Microfone do app: cada pausa vira um item separado por vírgula, e o texto
- * fica na caixa para a pessoa conferir na prévia antes de adicionar.
+ * Falar a lista: cada coisa reconhecida vira uma linha na hora. O Chrome do
+ * Android desliga o microfone depois de uma pausa; aqui ele religa sozinho,
+ * e as frases repetidas ou acumuladas são descartadas (core/fala.js).
  */
-function ouvir() {
-  const campo = $('nTexto'), bt = $('nMic'), dica = $('nDica');
-  if (!campo || !bt) return;
-  const rec = new Reconhecimento();
-  rec.lang = 'pt-BR';
-  rec.continuous = true;
-  rec.interimResults = true;
-  const inicio = campo.value.trim();
-  const finais = [];
-  rec.onresult = (e) => {
-    let parcial = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript.trim();
-      if (!t) continue;
-      if (e.results[i].isFinal) finais.push(t); else parcial = t;
-    }
-    campo.value = [inicio, ...finais, parcial].filter(Boolean).join(', ');
-    atualizarPrevia(campo);
-  };
-  rec.onerror = (e) => {
-    const motivo = {
-      'not-allowed': 'Libere o microfone para o NaLista nas permissões do navegador.',
-      'service-not-allowed': 'Libere o microfone para o NaLista nas permissões do navegador.',
-      network: 'Falar precisa de internet. Sem sinal, use o microfone do teclado.',
-      'no-speech': 'Não ouvi nada. Toque no microfone e tente de novo.',
-      'audio-capture': 'Não encontrei o microfone do aparelho.',
-    }[e.error];
-    if (motivo) aviso(motivo);
-  };
-  rec.onend = () => {
-    ouvindo = null;
-    const b = $('nMic');
-    if (b) { b.classList.remove('ouvindo'); b.setAttribute('aria-pressed', 'false'); }
-    const d = $('nDica');
-    if (d && finais.length) d.textContent = 'Confira a prévia e toque em Adicionar.';
-  };
-  try { rec.start(); } catch { aviso('Não deu para ligar o microfone agora.'); return; }
-  ouvindo = rec;
-  bt.classList.add('ouvindo');
-  bt.setAttribute('aria-pressed', 'true');
-  if (dica) dica.textContent = 'Ouvindo… fale um item de cada vez. Toque no microfone para parar.';
-}
-
-function pararDeOuvir() {
-  if (ouvindo) { try { ouvindo.stop(); } catch { /* já parou */ } }
-}
-
-/** Prévia do que vai entrar e sugestões para a palavra que está sendo digitada. */
-function atualizarPrevia(campo) {
-  const valor = campo.value;
-  const novos = paraItens(lerEntrada(valor));
-  const previa = $('nPrevia');
-  previa.hidden = !novos.length;
-  previa.innerHTML = novos.map((i) => {
-    const ja = itens.some((x) => x.nome.toLowerCase() === i.nome.toLowerCase());
-    const q = formatarQtd(i);
-    return `<li><b>${esc(i.nome)}</b>${q ? ` <span class="qtd">${q}</span>` : ''}<span class="cinza"> · ${esc(i.cat)}</span>${ja ? ' <span class="ja">já na lista: soma</span>' : ''}</li>`;
-  }).join('');
-
-  const sug = $('nSug');
-  sug.innerHTML = '';
-  // Só sugere enquanto a pessoa ainda está escrevendo o último item.
-  if (/[,;]\s*$/.test(valor) || /\se\s*$/.test(valor)) return;
-  const pedacos = separarItens(valor);
-  const ultimo = pedacos[pedacos.length - 1];
-  if (!ultimo) return;
-  const lido = lerPedaco(ultimo);
-  if (!lido || lido.digitado.length < 2) return;
-  const opcoes = sugerir(historico, lido.digitado, 5);
-  const inicioDoPedaco = valor.lastIndexOf(ultimo);
-  const antesDoNome = ultimo.slice(0, ultimo.lastIndexOf(lido.digitado));
-  for (const o of opcoes) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'chip' + (o.doHistorico ? ' meu' : '');
-    b.innerHTML = esc(o.nome) + (o.doHistorico ? ' <span class="cinza">já comprou</span>' : '');
-    b.onclick = () => {
-      campo.value = valor.slice(0, inicioDoPedaco) + antesDoNome + o.nome + ', ';
-      campo.focus();
-      atualizarPrevia(campo);
-    };
-    sug.appendChild(b);
-  }
-}
-
-// ---------------------------------------------------------------- detalhes de um item
-function editarItem(item) {
-  const rascunho = { ...item };
-  const cats = CATEGORIAS.includes(item.cat) ? CATEGORIAS : [...CATEGORIAS, item.cat];
-  abrirPainel(`<h3>Detalhes do item</h3>
-    <label class="campo">Nome<input class="texto" id="dNome" value="${esc(item.nome)}" autocomplete="off"></label>
-    <label class="campo">Observação<input class="texto" id="dObs" value="${esc(item.obs || '')}" placeholder="Ex.: maduras, marca X, sem lactose" autocomplete="off"></label>
-    <label class="campo">Categoria<select id="dCat">${cats.map((c) => `<option ${c === item.cat ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
-    <div class="campo">Quantidade<div class="fileira"><div class="passo"><button type="button" aria-label="Menos">−</button><span></span><button type="button" aria-label="Mais">+</button></div><select id="dUn" aria-label="Unidade">${UNIDADES.map((u) => `<option ${u === item.un ? 'selected' : ''}>${u}</option>`).join('')}</select></div></div>
+function painelDitado() {
+  let ouvidos = [];
+  let ultimaFinal = '';
+  let querOuvir = true;
+  let rec = null;
+  let semFala = 0;
+  let parcial = '';
+  abrirPainel(`<h3>Fale os itens</h3>
+    <p id="ftEstado" class="estado-mic ouvindo">Ouvindo… pode falar tudo seguido: “dois quilos de frango, pão, seis leites zero lactose”.</p>
+    <ul class="ouvidos" id="ftLista" hidden></ul>
+    <p class="parcial" id="ftParcial"></p>
     <div class="fileira">
-      <button class="btn primario" id="dSalvar" type="button">Salvar</button>
-      <button class="btn perigo" id="dRemover" type="button">Remover</button>
+      <button class="btn mic-bt ouvindo" id="ftMic" type="button" aria-pressed="true">Parar</button>
+      <button class="btn primario" id="ftPor" type="button">Pôr na lista</button>
     </div>
-    <button class="btn discreto" data-fechar type="button">Cancelar</button>`);
-  const [menos, mais] = painel.querySelectorAll('.passo button');
-  ligarPasso(rascunho, menos, mais, painel.querySelector('.passo span'), $('dUn'), () => {});
-  $('dSalvar').onclick = () => {
-    const nome = $('dNome').value.trim();
-    if (!nome) { $('dNome').focus(); return; }
-    const obs = $('dObs').value.trim();
-    Object.assign(item, { nome, cat: $('dCat').value, qtd: rascunho.qtd, un: rascunho.un });
-    if (obs) item.obs = obs; else delete item.obs;
-    guardar(); lembrar([item], false); fecharPainel(); desenhar();
+    <button class="btn discreto" id="ftCancelar" type="button">Cancelar</button>`, 'ditado', () => { querOuvir = false; desligar(); });
+
+  const desenharOuvidos = () => {
+    const ul = $('ftLista');
+    if (!ul) return;
+    ul.hidden = !ouvidos.length;
+    ul.innerHTML = ouvidos.map((i, n) => {
+      const q = formatarQtd(i);
+      return `<li><span class="nome">${esc(i.nome)}${i.obs ? `<small>${esc(i.obs)}</small>` : ''}</span>${q ? `<span class="qtd">${q}</span>` : ''}<button type="button" class="tirar" data-tirar="${n}" aria-label="Tirar ${esc(i.nome)}">×</button></li>`;
+    }).join('');
+    ul.querySelectorAll('[data-tirar]').forEach((b) => { b.onclick = () => { ouvidos.splice(Number(b.dataset.tirar), 1); desenharOuvidos(); }; });
+    $('ftPor').textContent = ouvidos.length ? `Pôr ${plural(ouvidos.length, 'item', 'itens')} na lista` : 'Pôr na lista';
   };
-  $('dRemover').onclick = () => {
-    marcarParaDesfazer();
-    itens = itens.filter((x) => x !== item); guardar(); fecharPainel(); desenhar();
-    aviso(`${item.nome} removido`, true);
+  const ouvirTrecho = (texto) => {
+    const novo = trechoNovo(ultimaFinal, texto);
+    ultimaFinal = texto;
+    if (!novo) return;
+    ouvidos = juntarOuvidos(ouvidos, paraItens(lerEntrada(novo)));
+    desenharOuvidos();
+    $('ftLista')?.lastElementChild?.scrollIntoView({ block: 'nearest' });
   };
+  const estado = (texto, ouvindo) => {
+    const e = $('ftEstado'), b = $('ftMic');
+    if (!e || !b) return;
+    e.textContent = texto;
+    e.classList.toggle('ouvindo', ouvindo);
+    b.textContent = ouvindo ? 'Parar' : 'Continuar falando';
+    b.classList.toggle('ouvindo', ouvindo);
+    b.setAttribute('aria-pressed', String(ouvindo));
+  };
+  function ligar() {
+    if (!querOuvir) return;
+    const r = new Reconhecimento();
+    r.lang = 'pt-BR';
+    r.continuous = true;
+    r.interimResults = true;
+    // Alguns Androids reenviam os resultados antigos a cada evento: guarda o que cada posição já disse.
+    const vistos = new Map();
+    r.onresult = (e) => {
+      semFala = 0;
+      parcial = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript.trim();
+        if (!t) continue;
+        if (e.results[i].isFinal) {
+          if (vistos.get(i) === t) continue;
+          vistos.set(i, t);
+          ouvirTrecho(t);
+        } else parcial = t;
+      }
+      const p = $('ftParcial');
+      if (p) p.textContent = parcial ? `“${parcial}”` : '';
+    };
+    r.onerror = (e) => {
+      const motivo = {
+        'not-allowed': 'O microfone está bloqueado. Libere o microfone para o NaLista nas permissões do navegador.',
+        'service-not-allowed': 'O microfone está bloqueado. Libere o microfone para o NaLista nas permissões do navegador.',
+        'audio-capture': 'Não encontrei o microfone do aparelho.',
+        network: 'Falar precisa de internet. Sem sinal, use o microfone do teclado na barra de baixo.',
+      }[e.error];
+      if (motivo) { querOuvir = false; estado(motivo, false); }
+      if (e.error === 'no-speech') semFala++;
+    };
+    r.onend = () => {
+      if (rec === r) rec = null;
+      // O que ficou só como parcial quando o microfone caiu também vale.
+      if (parcial) { ouvirTrecho(parcial); parcial = ''; const p = $('ftParcial'); if (p) p.textContent = ''; }
+      if (querOuvir && semFala < 3) { setTimeout(ligar, 120); return; }
+      if (querOuvir) { querOuvir = false; estado('Parei porque ficou em silêncio. Toque em Continuar falando quando quiser.', false); }
+    };
+    try { r.start(); rec = r; } catch { querOuvir = false; estado('Não deu para ligar o microfone agora. Tente de novo.', false); }
+  }
+  function desligar() { if (rec) { try { rec.stop(); } catch { /* já parou */ } } }
+
+  $('ftMic').onclick = () => {
+    if (querOuvir) { querOuvir = false; desligar(); estado(ouvidos.length ? 'Confira os itens e toque em Pôr na lista.' : 'Parado.', false); return; }
+    querOuvir = true; semFala = 0;
+    estado('Ouvindo…', true);
+    ligar();
+  };
+  $('ftPor').onclick = () => {
+    querOuvir = false; desligar();
+    if (parcial) ouvirTrecho(parcial);
+    if (!ouvidos.length) { aviso('Nenhum item ouvido ainda'); return; }
+    const novos = ouvidos;
+    fecharPainel();
+    adicionar(novos);
+  };
+  $('ftCancelar').onclick = fecharPainel;
+  ligar();
 }
 
 // ---------------------------------------------------------------- contagem e limpar
 function atualizarContagem() {
   const r = resumoDaCompra(itens);
-  $('contagem').innerHTML = editando
-    ? `<b>${r.total}</b> ${r.total === 1 ? 'item' : 'itens'} na lista`
-    : `<b>${r.pegos}</b> de ${r.total} no carrinho${r.faltaram ? ` · ${r.faltaram} não tinha` : ''}`;
-  // A dica some quando a compra começa, para a contagem caber numa linha.
-  $('dica').textContent = editando ? 'Toque no nome para detalhes' : (r.resolvidos ? '' : 'Toque para marcar');
-  $('barra').style.width = r.total && !editando ? `${(r.resolvidos / r.total) * 100}%` : '0';
+  $('contagem').innerHTML = !r.total
+    ? 'Nenhum item'
+    : r.resolvidos
+      ? `<b>${r.pegos}</b> de ${r.total} no carrinho${r.faltaram ? ` · ${r.faltaram} não tinha` : ''}`
+      : `<b>${r.total}</b> ${r.total === 1 ? 'item' : 'itens'} para pegar`;
+  $('barra').style.width = r.total ? `${(r.resolvidos / r.total) * 100}%` : '0';
 
-  // Total gasto e orçamento: só na hora da compra.
+  // Total e orçamento: aparecem quando a compra começa (ou já há preço ou orçamento).
   const gasto = $('gasto');
-  gasto.hidden = editando || !r.total;
+  gasto.hidden = !r.total || !(r.resolvidos || r.comPreco || orcamento);
   const passou = orcamento && r.gasto > orcamento;
   gasto.classList.toggle('passou', !!passou);
   gasto.innerHTML = r.comPreco || orcamento
     ? `Total <b>${formatarPreco(r.gasto)}</b>${orcamento ? ` <span class="cinza">de ${formatarPreco(orcamento)}</span>` : ''}${passou ? ` · passou ${formatarPreco(Math.round((r.gasto - orcamento) * 100) / 100)} do combinado` : ''}`
-    : 'Toque em <b>R$</b> no item para anotar o preço · <u>orçamento</u>';
+    : 'Para anotar o preço, toque no nome do item · <u>orçamento</u>';
 
-  const concluida = !editando && r.total > 0 && r.resolvidos === r.total;
+  const concluida = r.total > 0 && r.resolvidos === r.total;
   const tudo = $('tudo');
   tudo.classList.toggle('mostrar', concluida);
   if (concluida) {
@@ -527,12 +676,12 @@ function atualizarContagem() {
 }
 
 /**
- * Tela acesa enquanto há itens para pegar: ninguém quer desbloquear o
+ * Tela acesa enquanto a compra está acontecendo: ninguém quer desbloquear o
  * celular a cada corredor. O navegador solta sozinho ao sair do app.
  */
 let travaDaTela = null;
 async function manterTelaAcesa() {
-  const precisa = !editando && document.visibilityState === 'visible' && itens.some((i) => !resolvido(i));
+  const precisa = document.visibilityState === 'visible' && itens.some(resolvido) && itens.some((i) => !resolvido(i));
   if (!('wakeLock' in navigator)) return;
   if (precisa && !travaDaTela) {
     try {
@@ -545,46 +694,117 @@ async function manterTelaAcesa() {
 }
 document.addEventListener('visibilitychange', manterTelaAcesa);
 
+/** Botão do fim da lista: zera as marcas para a próxima compra (dois toques). */
 const bLimpar = $('limpar');
 let prazo;
 function rearmarLimpar() {
   clearTimeout(prazo);
   bLimpar.classList.remove('armado');
-  bLimpar.textContent = editando ? 'Apagar a lista inteira' : 'Começar nova compra';
-  bLimpar.hidden = !itens.length;
+  bLimpar.textContent = 'Começar nova compra';
+  bLimpar.hidden = !itens.some(resolvido);
 }
 bLimpar.onclick = () => {
   if (!bLimpar.classList.contains('armado')) {
     bLimpar.classList.add('armado');
-    bLimpar.textContent = 'Toque de novo para confirmar';
+    bLimpar.textContent = 'Toque de novo para zerar as marcas';
     prazo = setTimeout(rearmarLimpar, 3000);
     return;
   }
   marcarParaDesfazer();
-  if (editando) {
-    lista.ultima = novaCompra(itens);
-    itens = [];
-    lista.compraRegistrada = false;
-  } else {
-    itens = novaCompra(itens);
-    lista.compraRegistrada = false;
-  }
-  guardar(); desenhar();
-  aviso(editando ? 'Lista apagada' : 'Marcas e preços zerados', true);
+  itens = novaCompra(itens);
+  lista.compraRegistrada = false;
+  guardar(); desenhar(); window.scrollTo({ top: 0 });
+  aviso('Marcas e preços zerados', true);
 };
 
-$('bEditar').onclick = () => { editando = !editando; desenhar(); window.scrollTo({ top: 0 }); };
+/** Menu ⋯: o que é usado de vez em quando. */
+function painelMais() {
+  const faltaNaLista = lista.ultima ? juntar(itens, lista.ultima).length - itens.length : 0;
+  const opcao = (id, titulo, desc) => `<li><button type="button" class="lista-linha" id="${id}"><span class="nome">${titulo}<small>${desc}</small></span></button></li>`;
+  abrirPainel(`<h3>Mais opções</h3>
+    <ul class="listas">
+      ${opcao('mImportar', 'Importar uma lista', 'Cole o link ou o texto que você recebeu')}
+      ${opcao('mProntas', 'Listas prontas', 'Mês, feira, churrasco, farmácia e outras')}
+      ${faltaNaLista > 0 ? opcao('mRepetir', 'Repetir a última compra', `${plural(faltaNaLista, 'item volta', 'itens voltam')} para ${esc(lista.nome)}`) : ''}
+      ${opcao('mOrcamento', 'Orçamento', orcamento ? `Até ${formatarPreco(orcamento)}` : 'Avisa quando o total passar do valor')}
+      ${itens.some(resolvido) ? opcao('mZerar', 'Começar nova compra', 'Zera as marcas e os preços, mantém os itens') : ''}
+      ${itens.length ? opcao('mEsvaziar', 'Esvaziar a lista', `Tira os ${plural(itens.length, 'item', 'itens')} de ${esc(lista.nome)}`) : ''}
+      ${opcao('mCompras', 'Compras anteriores', 'O que foi pego, o que faltou e quanto deu')}
+      ${opcao('mBackup', 'Backup', 'Salvar ou restaurar tudo num arquivo')}
+      ${opcao('mDica', 'Como usar', 'Mostra de novo as dicas da lista')}
+    </ul>
+    <button class="btn discreto" data-fechar type="button">Fechar</button>`);
+  $('mImportar').onclick = painelImportar;
+  $('mProntas').onclick = painelModelos;
+  if ($('mRepetir')) $('mRepetir').onclick = () => {
+    marcarParaDesfazer();
+    const antes = itens.length;
+    itens = juntar(itens, novaCompra(lista.ultima));
+    guardar(); fecharPainel(); desenhar();
+    aviso(`${plural(itens.length - antes, 'item voltou', 'itens voltaram')} da última compra`, true);
+  };
+  $('mOrcamento').onclick = painelOrcamento;
+  if ($('mZerar')) $('mZerar').onclick = () => {
+    marcarParaDesfazer(); itens = novaCompra(itens); lista.compraRegistrada = false;
+    guardar(); fecharPainel(); desenhar(); aviso('Marcas e preços zerados', true);
+  };
+  if ($('mEsvaziar')) {
+    const b = $('mEsvaziar');
+    b.onclick = () => {
+      if (!b.classList.contains('armado')) { b.classList.add('armado'); b.querySelector('small').textContent = 'Toque de novo para confirmar'; return; }
+      marcarParaDesfazer();
+      lista.ultima = novaCompra(itens);
+      itens = []; lista.compraRegistrada = false;
+      guardar(); fecharPainel(); desenhar(); aviso('Lista esvaziada', true);
+    };
+  }
+  $('mCompras').onclick = painelCompras;
+  $('mBackup').onclick = painelBackup;
+  $('mDica').onclick = () => { try { localStorage.removeItem(DICA_GESTOS); } catch { /* ok */ } fecharPainel(); desenhar(); window.scrollTo({ top: 0 }); };
+}
+$('bMais').onclick = painelMais;
 
 // ---------------------------------------------------------------- painel
 const fundo = $('fundo'), painel = $('painel');
-function abrirPainel(html) {
+let painelAtual = null;
+let aoFecharPainel = null;
+/** Abre o painel de baixo. `tipo` dá o jeito (alto, ditado); `aoFechar` roda quando ele some. */
+function abrirPainel(html, tipo = null, aoFechar = null) {
+  if (aoFecharPainel) { const f = aoFecharPainel; aoFecharPainel = null; f(); }
   painel.innerHTML = html;
+  painel.className = 'painel' + (tipo ? ` painel-${tipo}` : '');
+  painelAtual = tipo;
+  aoFecharPainel = aoFechar;
   fundo.classList.add('aberto');
   painel.querySelectorAll('[data-fechar]').forEach((b) => { b.onclick = fecharPainel; });
 }
-function fecharPainel() { fundo.classList.remove('aberto'); }
+function fecharPainel() {
+  fundo.classList.remove('aberto');
+  painelAtual = null;
+  if (aoFecharPainel) { const f = aoFecharPainel; aoFecharPainel = null; f(); }
+}
 fundo.addEventListener('click', (e) => { if (e.target === fundo) fecharPainel(); });
 addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharPainel(); });
+
+function painelOrcamento() {
+  const valor = orcamento ? String(orcamento.toFixed(2)).replace('.', ',') : '';
+  abrirPainel(`<h3>Orçamento da compra</h3>
+    <p>O total fica em destaque quando passar do valor.</p>
+    <label class="campo">Quanto pretende gastar?<input class="texto preco-campo" id="oValor" inputmode="decimal" placeholder="R$ 0,00" value="${valor}" autocomplete="off"></label>
+    <div class="fileira">
+      <button class="btn primario" id="oSalvar" type="button">Salvar</button>
+      ${orcamento ? '<button class="btn" id="oTirar" type="button">Sem orçamento</button>' : ''}
+    </div>
+    <button class="btn discreto" data-fechar type="button">Cancelar</button>`);
+  const definir = (v) => { orcamento = v; salvarOrcamento(v); fecharPainel(); atualizarContagem(); };
+  $('oSalvar').onclick = () => {
+    const v = lerPreco($('oValor').value);
+    if (!v) { aviso('Digite um valor'); return; }
+    definir(v);
+  };
+  if ($('oTirar')) $('oTirar').onclick = () => definir(null);
+}
+$('gasto').onclick = painelOrcamento;
 
 async function copiar(texto) {
   try { await navigator.clipboard.writeText(texto); aviso('Copiado'); return; } catch { /* segue */ }
@@ -692,7 +912,7 @@ function painelRecebida(novos, origem, meta) {
       <button class="btn" id="rTrocar" type="button">Substituir ${esc(lista.nome)}</button>
     </div>`}
     <button class="btn discreto" data-fechar type="button">Agora não</button>`);
-  const terminar = (msg, podeDesfazer = true) => { editando = false; guardar(); fecharPainel(); desenhar(); aviso(msg, podeDesfazer); };
+  const terminar = (msg, podeDesfazer = true) => { guardar(); fecharPainel(); desenhar(); aviso(msg, podeDesfazer); };
   if ($('rAqui')) {
     $('rAqui').onclick = () => {
       marcarParaDesfazer();
@@ -744,7 +964,7 @@ function painelComplemento(chegaram, meta, mesmaLista = false) {
     itens = r.itens;
     ligar(lista, meta?.uid);
     lista.compraRegistrada = false;
-    editando = false; guardar(); fecharPainel(); desenhar(); window.scrollTo({ top: 0 });
+    guardar(); fecharPainel(); desenhar(); window.scrollTo({ top: 0 });
     const partes = [];
     if (r.novos.length) partes.push(plural(r.novos.length, 'item novo', 'itens novos'));
     if (r.reabertos.length) partes.push(`${r.reabertos.length} voltou para pegar`);
@@ -759,7 +979,7 @@ function painelComplemento(chegaram, meta, mesmaLista = false) {
     estado.listas.push(nova);
     trocarPara(nova.id, false);
     antesDeDesfazer = null;
-    editando = false; guardar(); fecharPainel(); desenhar();
+    guardar(); fecharPainel(); desenhar();
     aviso(`Lista ${nova.nome} criada`);
   };
 }
@@ -793,14 +1013,14 @@ function painelRetorno(r) {
   if ($('vNova')) {
     $('vNova').onclick = () => {
       marcarParaDesfazer();
-      itens = faltando; editando = false; guardar(); fecharPainel(); desenhar();
+      itens = faltando; guardar(); fecharPainel(); desenhar();
       aviso(`Lista nova com ${plural(faltando.length, 'item', 'itens')}`, true);
     };
   }
   if ($('vJuntar')) {
     $('vJuntar').onclick = () => {
       marcarParaDesfazer();
-      itens = juntar(itens, faltando); editando = false; guardar(); fecharPainel(); desenhar();
+      itens = juntar(itens, faltando); guardar(); fecharPainel(); desenhar();
       aviso('O que faltou entrou na sua lista', true);
     };
   }
@@ -840,7 +1060,7 @@ async function receber(texto, origem) {
   }
 }
 
-$('bImportar').onclick = () => {
+function painelImportar() {
   abrirPainel(`<h3>Importar uma lista</h3>
     <p>Cole o link ou o texto que você recebeu, da lista ou do retorno da compra. Também serve uma lista simples, um item por linha ou separada por vírgula.</p>
     <textarea id="iTexto" placeholder="Cole aqui"></textarea>
@@ -849,7 +1069,7 @@ $('bImportar').onclick = () => {
   $('iLer').onclick = async () => {
     if (!(await receber($('iTexto').value, 'texto'))) aviso('Nenhum item encontrado');
   };
-};
+}
 
 async function lerLinkDoEndereco() {
   const hash = location.hash;
@@ -919,7 +1139,7 @@ function painelModelo(m) {
   $('mAdicionar').onclick = () => {
     const novos = paraItens(todos.filter((i) => escolhidos.has(i.nome)).map((i) => ({ nome: i.nome, cat: i.cat, qtd: i.qtd, un: i.un, unDita: i.qtd != null })));
     fecharPainel();
-    editando = true;
+    
     adicionar(novos);
   };
   atualizar();
@@ -933,7 +1153,7 @@ function trocarPara(id, redesenhar = true) {
   lista = listaAtiva(estado);
   itens = lista.itens;
   salvarListas(estado);
-  if (redesenhar) { editando = !itens.length; desenhar(); window.scrollTo({ top: 0 }); }
+  if (redesenhar) { desenhar(); window.scrollTo({ top: 0 }); }
 }
 
 const resumoDaLista = (l) => {
@@ -973,7 +1193,7 @@ function painelListas() {
       estado.listas = estado.listas.filter((l) => l !== lista);
       estado.ativa = listasPorUso(estado)[0].id;
       lista = listaAtiva(estado); itens = lista.itens;
-      salvarListas(estado); fecharPainel(); editando = false; desenhar();
+      salvarListas(estado); fecharPainel(); desenhar();
       aviso(`Lista ${nome} apagada`);
     };
   }
@@ -1009,7 +1229,7 @@ function painelDaLista(alvo) {
     estado.listas.push(nova);
     fecharPainel();
     trocarPara(nova.id, false);
-    editando = true; desenhar(); window.scrollTo({ top: 0 });
+    desenhar(); window.scrollTo({ top: 0 });
     aviso(iniciais.length ? `${nova.nome} criada com ${plural(iniciais.length, 'item de sempre', 'itens de sempre')}` : `${nova.nome} criada`);
   };
 }
@@ -1042,7 +1262,7 @@ function painelUmaCompra(c) {
   const aplicar = (novos, msg) => {
     marcarParaDesfazer();
     itens = juntar(itens, novos); lista.compraRegistrada = false;
-    guardar(); fecharPainel(); editando = false; desenhar(); aviso(msg, true);
+    guardar(); fecharPainel(); desenhar(); aviso(msg, true);
   };
   if ($('cFaltou')) $('cFaltou').onclick = () => aplicar(faltando, `${plural(faltando.length, 'item entrou', 'itens entraram')} na lista`);
   $('cRepetir').onclick = () => aplicar(c.itens.map((i) => ({ ...i })), 'Compra repetida na lista');
@@ -1132,6 +1352,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 // ---------------------------------------------------------------- início
+montarBarra();
 desenhar();
 lerLinkDoEndereco();
 lerCompartilhado();
