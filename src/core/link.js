@@ -5,9 +5,9 @@
  * servidor. A lista passa de um celular para o outro sem ninguém no meio.
  *
  * Formato antes de comprimir (curto, para o link caber no WhatsApp):
- *   [1, [[nome, cat, qtd, un], ...]]
+ *   [1, [[nome, cat, qtd, un?, obs?], ...]]
  *   cat é o número da categoria conhecida, ou o próprio texto.
- *   qtd é 0 quando não foi definida; un é omitida quando é "un".
+ *   qtd é 0 quando não foi definida; un é omitida quando é "un" e não há obs.
  *
  * Código: "z" + deflate em base64url quando o aparelho comprime, ou
  * "j" + JSON em base64url quando não comprime. Os dois são lidos sempre.
@@ -41,7 +41,8 @@ function compactar(itens) {
   return [VERSAO, itens.map((i) => {
     const c = CATEGORIAS.indexOf(i.cat);
     const linha = [i.nome, c >= 0 ? c : i.cat, i.qtd ?? 0];
-    if (i.un !== 'un') linha.push(i.un);
+    if (i.un !== 'un' || i.obs) linha.push(i.un);
+    if (i.obs) linha.push(i.obs);
     return linha;
   })];
 }
@@ -52,12 +53,16 @@ function descompactar(dados) {
   }
   return dados[1]
     .filter((l) => Array.isArray(l) && typeof l[0] === 'string' && l[0].trim())
-    .map(([nome, c, qtd, un]) => criarItem(
-      nome.trim().slice(0, 120),
-      typeof c === 'number' ? (CATEGORIAS[c] || 'Outros') : String(c || 'Outros').slice(0, 40),
-      typeof qtd === 'number' && qtd > 0 ? qtd : null,
-      typeof un === 'string' ? un.slice(0, 6) : 'un',
-    ));
+    .map(([nome, c, qtd, un, obs]) => {
+      const item = criarItem(
+        nome.trim().slice(0, 120),
+        typeof c === 'number' ? (CATEGORIAS[c] || 'Outros') : String(c || 'Outros').slice(0, 40),
+        typeof qtd === 'number' && qtd > 0 ? qtd : null,
+        typeof un === 'string' ? un.slice(0, 6) : 'un',
+      );
+      if (typeof obs === 'string' && obs.trim()) item.obs = obs.trim().slice(0, 120);
+      return item;
+    });
 }
 
 export async function codificar(itens) {

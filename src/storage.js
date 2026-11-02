@@ -1,20 +1,34 @@
 /**
- * A lista fica guardada só neste aparelho (localStorage).
+ * Tudo fica guardado só neste aparelho (localStorage).
  * Qualquer falha (modo anônimo, armazenamento cheio) não derruba o app:
- * ele segue funcionando, só não lembra da lista depois de fechar.
+ * ele segue funcionando, só não lembra depois de fechar.
  */
 
-const CHAVE = 'lista-compras-v1';
-
-export function carregar() {
+function ler(chave, padrao) {
   try {
-    const dados = JSON.parse(localStorage.getItem(CHAVE));
-    return Array.isArray(dados) ? dados : null;
+    const v = JSON.parse(localStorage.getItem(chave));
+    return v ?? padrao;
   } catch {
-    return null;
+    return padrao;
   }
 }
-
-export function salvar(itens) {
-  try { localStorage.setItem(CHAVE, JSON.stringify(itens)); } catch { /* segue sem guardar */ }
+function gravar(chave, valor) {
+  try { localStorage.setItem(chave, JSON.stringify(valor)); } catch { /* segue sem guardar */ }
 }
+
+const LISTA = 'lista-compras-v1';
+const HISTORICO = 'lista-compras-historico-v1';
+const ULTIMA = 'lista-compras-ultima-v1';
+
+export function carregar() {
+  const v = ler(LISTA, null);
+  return Array.isArray(v) ? v : null;
+}
+export const salvar = (itens) => gravar(LISTA, itens);
+
+export const carregarHistorico = () => ler(HISTORICO, {});
+export const salvarHistorico = (h) => gravar(HISTORICO, h);
+
+/** A última compra: a lista como estava quando foi concluída ou apagada. */
+export const carregarUltima = () => ler(ULTIMA, null);
+export const salvarUltima = (itens) => gravar(ULTIMA, itens);

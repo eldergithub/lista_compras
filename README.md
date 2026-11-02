@@ -6,9 +6,13 @@ App de lista de compras para o celular (PWA): monte a lista, envie por link para
 
 ## Como usar
 
-- **Editar:** quantidade com − e +, unidade (un, kg, g, L, cx, pct, dz), adicionar e remover itens. A categoria é sugerida pelo nome.
-- **Enviar:** manda um link com a lista dentro (WhatsApp, Telegram…), mostra um QR code ou manda como texto.
-- **Importar:** cola um link, o texto do app ou uma lista simples, um item por linha (`2 kg frango`, `Leite - 6 cx`).
+- **Editar → caixa de adicionar:** escreva ou fale vários itens de uma vez — `2 kg frango, pão, 6 leite e tomate`, `dois quilos de carne`, `meia dúzia de ovos`. A prévia mostra quantidade, unidade e categoria antes de entrar. Pelo microfone do teclado (Gboard) funciona igual.
+- **Sugestões:** completa o nome com o que você já comprou e um catálogo de ~280 itens, cada um com a unidade de costume (banana em dz, carne em kg, leite em cx).
+- **Itens de sempre** e **Repetir a última compra**, a partir do histórico guardado no aparelho.
+- **Detalhes do item:** toque no nome para mudar nome, observação (`maduras`, `marca X`), categoria e quantidade.
+- Item repetido soma a quantidade; remover, apagar e importar têm **Desfazer**.
+- **Enviar:** link com a lista dentro (WhatsApp, Telegram…), QR code ou texto.
+- **Importar:** cola um link, o texto do app ou uma lista simples. Com o app instalado no Android, dá para **compartilhar** uma mensagem direto com o app "Compras".
 - **Instalar:** no Android, o Chrome oferece "Instalar". No iPhone, Safari → Compartilhar → Adicionar à Tela de Início.
 
 A lista fica só no aparelho. O link leva a lista depois do `#`, parte do endereço que não vai para o servidor.
@@ -18,7 +22,7 @@ A lista fica só no aparelho. O link leva a lista depois do `#`, parte do endere
 ```bash
 npm install
 npm run dev      # servidor local (também acessível na rede, para testar no celular)
-npm test         # verificações do núcleo (texto, link, categorias)
+npm test         # verificações do núcleo (leitor de texto e fala, link, catálogo, histórico)
 npm run build    # gera dist/ e fecha o service worker
 ```
 

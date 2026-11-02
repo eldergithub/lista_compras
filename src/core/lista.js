@@ -1,7 +1,7 @@
 /**
  * O modelo da lista: um array de itens, sem nada de tela.
  *
- * Item: { id, nome, cat, qtd, un, feito }
+ * Item: { id, nome, cat, qtd, un, feito, obs? }
  *   qtd = null quando ninguém definiu a quantidade.
  */
 
@@ -31,6 +31,29 @@ export function categoriasEmUso(itens) {
   return [...CATEGORIAS.filter((c) => usadas.has(c)), ...extras];
 }
 
+const mesmoNome = (a, b) => a.nome.toLowerCase() === b.nome.toLowerCase();
+
+/**
+ * Adiciona o que a pessoa acabou de digitar. Item repetido não vira linha
+ * nova: soma a quantidade quando a unidade é a mesma.
+ * Devolve { itens, somados: [nomes que já estavam na lista] }.
+ */
+export function adicionarItens(atuais, novos) {
+  const itens = atuais.map((i) => ({ ...i }));
+  const somados = [];
+  for (const novo of novos) {
+    const igual = itens.find((i) => mesmoNome(i, novo));
+    if (!igual) { itens.push({ ...novo, id: novoId(), feito: false }); continue; }
+    somados.push(igual.nome);
+    igual.feito = false;
+    if (novo.qtd == null) continue;
+    if (igual.qtd != null && igual.un === novo.un) igual.qtd += novo.qtd;
+    else { igual.qtd = novo.qtd; igual.un = novo.un; }
+    if (novo.obs) igual.obs = novo.obs;
+  }
+  return { itens, somados };
+}
+
 /**
  * Junta duas listas. Um item que já existe (mesmo nome, ignorando
  * maiúsculas) não é duplicado: fica a quantidade que veio de fora, se ela
@@ -39,9 +62,10 @@ export function categoriasEmUso(itens) {
 export function juntar(atuais, novos) {
   const resultado = atuais.map((i) => ({ ...i }));
   for (const novo of novos) {
-    const igual = resultado.find((i) => i.nome.toLowerCase() === novo.nome.toLowerCase());
+    const igual = resultado.find((i) => mesmoNome(i, novo));
     if (igual) {
       if (novo.qtd != null) { igual.qtd = novo.qtd; igual.un = novo.un; }
+      if (novo.obs) igual.obs = novo.obs;
     } else {
       resultado.push({ ...novo, id: novoId(), feito: false });
     }

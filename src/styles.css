@@ -122,3 +122,30 @@ textarea {
 }
 .aviso.mostrar { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Fase 3: montar a lista */
+.nome small { display: block; color: var(--suave); font-size: .85rem; margin-top: 2px; }
+.nome-bt { font: inherit; color: inherit; background: none; border: 0; padding: 6px 0; text-align: left; cursor: pointer; text-decoration: underline dotted var(--linha); text-underline-offset: 4px; }
+.entrada { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips:empty { display: none; }
+.chip {
+  font: inherit; font-size: .95rem; padding: 8px 12px; min-height: 40px; border-radius: 99px;
+  border: 1px solid var(--linha); background: var(--bg); color: var(--texto); cursor: pointer;
+}
+.chip.meu { border-color: var(--destaque); }
+.previa { list-style: none; margin: 0; padding: 0; border: 0; background: transparent; display: grid; gap: 6px; }
+.previa li { border: 0; padding: 8px 10px; border-radius: 10px; background: var(--destaque-leve); font-size: .95rem; }
+.previa .qtd { background: var(--superficie); }
+.ja { font-size: .8rem; font-weight: 700; color: var(--destaque); margin-left: 4px; }
+.atalho { margin-top: 18px; }
+.repetir { width: 100%; margin-top: 14px; }
+.campo { display: grid; gap: 6px; font-weight: 700; font-size: .9rem; color: var(--suave); }
+.campo .texto, .campo select { width: 100%; height: 46px; font-size: 16px; font-weight: 400; color: var(--texto); }
+.campo .fileira select { width: auto; flex: 1; }
+.btn.perigo { color: var(--perigo); }
+.limpar[hidden] { display: none; }
+.aviso { display: flex; align-items: center; gap: 14px; max-width: calc(100vw - 32px); }
+.aviso.com-acao { pointer-events: auto; }
+.aviso button { font: inherit; font-weight: 700; color: var(--destaque-leve); background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; }
+@media (prefers-color-scheme: dark) { .aviso button { color: var(--destaque); } }
