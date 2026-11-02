@@ -20,7 +20,7 @@ import { procurarNoCatalogo } from './catalogo.js';
 // ---------------------------------------------------------------- saída
 
 export function paraTexto(itens) {
-  const linhas = ['🛒 *Lista de Compras*', ''];
+  const linhas = ['🛒 *NaLista*', ''];
   for (const cat of categoriasEmUso(itens)) {
     linhas.push(`*${cat}*`);
     for (const i of itens.filter((x) => x.cat === cat)) {
@@ -172,7 +172,8 @@ export function lerTexto(texto) {
   let cat = null;
   for (const bruta of String(texto).split(/\r?\n/)) {
     const s = bruta.trim();
-    if (!s || s.startsWith('🛒') || /^\*?lista d[eo] (compras|mercado)/i.test(s)) continue;
+    // Cabeçalhos do texto do app e do retorno (🛒, 🧾, ✅, ❌, ⏳, 💰) não são itens.
+    if (!s || /^(🛒|🧾|✅|❌|⏳|💰)/u.test(s) || /^\*?(nalista|lista d[eo] (compras|mercado))\*?$/i.test(s)) continue;
     const cabecalho = s.match(/^\*([^*]+)\*$/) || s.match(/^([^\-•\d*][^:]*):$/);
     if (cabecalho) { cat = categoriaCanonica(cabecalho[1]); continue; }
     // Linha do app ("- Nome — 2 kg (obs)") é um item só; o resto pode ter vários.

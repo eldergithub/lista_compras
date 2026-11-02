@@ -10,7 +10,8 @@ import {
   criarItem, formatarNumero, formatarQtd, categoriasEmUso, juntar, adicionarItens, LISTA_INICIAL,
 } from './core/lista.js';
 import { paraTexto, lerTexto, lerEntrada, separarItens, lerPedaco } from './core/texto.js';
-import { montarLink, decodificar, codigoDoEndereco } from './core/link.js';
+import { montarLink, decodificar, codigoDoEndereco, codigoDeRetorno, montarLinkDeRetorno } from './core/link.js';
+import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from './core/retorno.js';
 import { registrar, doHistorico, sugerir, deSempre } from './core/historico.js';
 import {
   ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra, resolvido,
@@ -355,7 +356,7 @@ function atualizarContagem() {
   const passou = orcamento && r.gasto > orcamento;
   gasto.classList.toggle('passou', !!passou);
   gasto.innerHTML = r.comPreco || orcamento
-    ? `Total <b>${formatarPreco(r.gasto)}</b>${orcamento ? ` <span class="cinza">de ${formatarPreco(orcamento)}</span>` : ''}${passou ? ' · passou do orçamento' : ''}`
+    ? `Total <b>${formatarPreco(r.gasto)}</b>${orcamento ? ` <span class="cinza">de ${formatarPreco(orcamento)}</span>` : ''}${passou ? ` · passou ${formatarPreco(Math.round((r.gasto - orcamento) * 100) / 100)} do combinado` : ''}`
     : 'Toque em <b>R$</b> no item para anotar o preço · <u>orçamento</u>';
 
   const concluida = !editando && r.total > 0 && r.resolvidos === r.total;
@@ -365,7 +366,8 @@ function atualizarContagem() {
     const partes = [`${plural(r.pegos, 'item pego', 'itens pegos')}`];
     if (r.faltaram) partes.push(`${r.faltaram} não tinha`);
     if (r.comPreco) partes.push(`total ${formatarPreco(r.gasto)}`);
-    tudo.innerHTML = `Compra concluída. Boa!<span>${partes.join(' · ')}</span>`;
+    tudo.innerHTML = `Tá tudo na sacola. Boa compra<span>${partes.join(' · ')}</span><button class="btn primario grande" id="tRetorno" type="button">Enviar retorno para quem fez a lista</button>`;
+    $('tRetorno').onclick = enviarRetorno;
     // Compra concluída vira a "última compra", que dá para repetir depois.
     ultima = novaCompra(itens); salvarUltima(ultima);
   }
@@ -446,20 +448,40 @@ async function compartilhar(dados, reserva) {
 }
 
 // ---------------------------------------------------------------- enviar
+/**
+ * Retorno da compra: o que pegou, o que não tinha, o que ficou e o total,
+ * num link #r= para quem montou a lista (ver core/retorno.js).
+ */
+async function enviarRetorno() {
+  const link = montarLinkDeRetorno(await codificarRetorno(itens), location.href);
+  compartilhar({ title: 'NaLista', text: '🧾 Retorno da compra — toque para ver o que faltou:', url: link }, link);
+}
+
 $('bEnviar').onclick = async () => {
   if (!itens.length) { aviso('A lista está vazia'); return; }
   const link = await montarLink(novaCompra(itens), location.href);
   const texto = paraTexto(itens);
-  abrirPainel(`<h3>Enviar a lista</h3>
+  // Quem já está comprando quer devolver o resultado; quem montou quer mandar a lista.
+  const comprando = itens.some(resolvido);
+  const r = resumoDaCompra(itens);
+  abrirPainel(`<h3>${comprando ? 'Enviar o retorno ou a lista' : 'Enviar a lista'}</h3>
+    ${comprando ? `<p>O retorno mostra para quem fez a lista o que você pegou (${r.pegos}), o que não tinha (${r.faltaram}) e o que ficou sem comprar (${r.total - r.resolvidos})${r.comPreco ? `, com o total de ${formatarPreco(r.gasto)}` : ''}.</p>
+    <button class="btn primario grande" id="eRetorno" type="button">Enviar retorno</button>
+    <button class="btn" id="eRetornoTexto" type="button">Retorno como texto</button>
+    <h4 class="sub">Ou mandar a lista</h4>` : ''}
     <p>Quem receber toca no link e a lista abre pronta no celular, com ${plural(itens.length, 'item', 'itens')}.</p>
-    <button class="btn primario grande" id="eLink" type="button">Enviar link</button>
+    <button class="btn ${comprando ? '' : 'primario grande'}" id="eLink" type="button">Enviar link da lista</button>
     <div class="fileira">
       <button class="btn" id="eQr" type="button">Mostrar QR code</button>
       <button class="btn" id="eTexto" type="button">Enviar como texto</button>
     </div>
     <div id="qr" class="qr" hidden></div>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
-  $('eLink').onclick = () => compartilhar({ title: 'Lista de Compras', text: '🛒 Lista de compras — toque para abrir:', url: link }, link);
+  if (comprando) {
+    $('eRetorno').onclick = enviarRetorno;
+    $('eRetornoTexto').onclick = () => { const t = textoDoRetorno(itens); compartilhar({ text: t }, t); };
+  }
+  $('eLink').onclick = () => compartilhar({ title: 'NaLista', text: '🛒 Chegou uma lista para você no NaLista — toque para abrir:', url: link }, link);
   $('eTexto').onclick = () => compartilhar({ text: texto }, texto);
   $('eQr').onclick = () => {
     const caixa = $('qr');
@@ -478,7 +500,7 @@ function painelRecebida(novos, origem) {
   const n = novos.length;
   const nomes = novos.slice(0, 8).map((i) => esc(i.nome) + (i.qtd != null ? ` <span class="cinza">${formatarQtd(i)}</span>` : '')).join(', ');
   const resto = n > 8 ? ` e mais ${n - 8}` : '';
-  abrirPainel(`<h3>${origem === 'link' ? 'Você recebeu uma lista' : 'Lista encontrada'}</h3>
+  abrirPainel(`<h3>${origem === 'link' ? 'Chegou uma lista para você' : 'Lista encontrada'}</h3>
     <p><b>${plural(n, 'item', 'itens')}:</b> ${nomes}${resto}.</p>
     ${itens.length ? `<p>Sua lista atual tem ${plural(itens.length, 'item', 'itens')}. Juntar mantém os dois, sem repetir.</p>` : ''}
     <div class="fileira">
@@ -496,42 +518,81 @@ function painelRecebida(novos, origem) {
   if ($('rJuntar')) $('rJuntar').onclick = () => aplicar(false);
 }
 
-/** Um link ou um texto de lista: decide sozinho qual é. */
-async function lerRecebido(texto) {
-  const codigo = codigoDoEndereco(texto);
-  try { return codigo ? await decodificar(codigo) : lerTexto(texto); } catch { return []; }
+/** O retorno de uma compra chegou: mostra o resultado e oferece montar a próxima lista com o que faltou. */
+function painelRetorno(r) {
+  const faltando = oQueFaltou(r);
+  const nomes = (lista) => lista.slice(0, 8).map((i) => esc(i.nome) + (i.qtd != null ? ` <span class="cinza">${formatarQtd(i)}</span>` : '')).join(', ') + (lista.length > 8 ? ` e mais ${lista.length - 8}` : '');
+  const quando = r.data ? new Date(r.data).toLocaleString('pt-BR', { weekday: 'long', hour: '2-digit', minute: '2-digit' }) : '';
+  abrirPainel(`<h3>${faltando.length ? 'A compra voltou' : 'Compra feita: não faltou nada'}</h3>
+    <p>${quando ? `Feita ${esc(quando)}. ` : ''}<b>${plural(r.pegos.length, 'item comprado', 'itens comprados')}</b>${r.gasto ? `, total de <b>${formatarPreco(r.gasto)}</b>` : ''}.</p>
+    ${r.faltaram.length ? `<p><b>Não tinha (${r.faltaram.length}):</b> ${nomes(r.faltaram)}.</p>` : ''}
+    ${r.naoComprados.length ? `<p><b>Não comprou (${r.naoComprados.length}):</b> ${nomes(r.naoComprados)}.</p>` : ''}
+    ${faltando.length ? `
+    <button class="btn primario grande" id="vNova" type="button">Fazer lista com o que faltou</button>
+    ${itens.length ? '<button class="btn" id="vJuntar" type="button">Juntar o que faltou à minha lista</button>' : ''}
+    <button class="btn discreto" data-fechar type="button">Só ver</button>`
+    : '<button class="btn primario grande" data-fechar type="button">Ok</button>'}`);
+  // A compra que voltou vira a "última compra" de quem montou, para repetir depois.
+  ultima = novaCompra([...r.pegos, ...r.faltaram, ...r.naoComprados]);
+  salvarUltima(ultima);
+  if ($('vNova')) {
+    $('vNova').onclick = () => {
+      marcarParaDesfazer();
+      itens = faltando; editando = false; guardar(); fecharPainel(); desenhar();
+      aviso(`Lista nova com ${plural(faltando.length, 'item', 'itens')}`, true);
+    };
+  }
+  if ($('vJuntar')) {
+    $('vJuntar').onclick = () => {
+      marcarParaDesfazer();
+      itens = juntar(itens, faltando); editando = false; guardar(); fecharPainel(); desenhar();
+      aviso('O que faltou entrou na sua lista', true);
+    };
+  }
+}
+
+/**
+ * Qualquer coisa que chegou (link de lista, link de retorno, texto colado
+ * ou compartilhado): decide sozinho o que é e abre o painel certo.
+ * Devolve false quando não achou nada.
+ */
+async function receber(texto, origem) {
+  try {
+    const retorno = codigoDeRetorno(texto);
+    if (retorno) { painelRetorno(await decodificarRetorno(retorno)); return true; }
+    const codigo = codigoDoEndereco(texto);
+    const novos = codigo ? await decodificar(codigo) : lerTexto(texto);
+    if (!novos.length) return false;
+    painelRecebida(novos, codigo ? 'link' : origem);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 $('bImportar').onclick = () => {
   abrirPainel(`<h3>Importar uma lista</h3>
-    <p>Cole o link ou o texto que você recebeu. Também serve uma lista simples, um item por linha ou separada por vírgula.</p>
+    <p>Cole o link ou o texto que você recebeu, da lista ou do retorno da compra. Também serve uma lista simples, um item por linha ou separada por vírgula.</p>
     <textarea id="iTexto" placeholder="Cole aqui"></textarea>
     <button class="btn primario grande" id="iLer" type="button">Continuar</button>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
   $('iLer').onclick = async () => {
-    const novos = await lerRecebido($('iTexto').value);
-    if (!novos.length) { aviso('Nenhum item encontrado'); return; }
-    painelRecebida(novos, 'texto');
+    if (!(await receber($('iTexto').value, 'texto'))) aviso('Nenhum item encontrado');
   };
 };
 
 async function lerLinkDoEndereco() {
-  const codigo = codigoDoEndereco(location.hash);
-  if (!codigo) return;
-  // Tira a lista do endereço: recarregar a página não pergunta de novo.
+  const hash = location.hash;
+  if (!codigoDoEndereco(hash) && !codigoDeRetorno(hash)) return;
+  // Tira o código do endereço: recarregar a página não pergunta de novo.
   history.replaceState(null, '', location.pathname + location.search);
-  try {
-    const novos = await decodificar(codigo);
-    if (novos.length) painelRecebida(novos, 'link');
-  } catch {
-    aviso('Esse link de lista está incompleto');
-  }
+  if (!(await receber(hash, 'link'))) aviso('Esse link está incompleto');
 }
 addEventListener('hashchange', lerLinkDoEndereco);
 
 /**
  * Menu "Compartilhar" do Android: com o app instalado, quem recebe uma
- * lista no WhatsApp compartilha com o "Compras" e ela chega aqui como
+ * lista no WhatsApp compartilha com o "NaLista" e ela chega aqui como
  * `?text=...` (ver share_target no manifest).
  */
 async function lerCompartilhado() {
@@ -539,9 +600,7 @@ async function lerCompartilhado() {
   const texto = ['title', 'text', 'url'].map((k) => p.get(k)).filter(Boolean).join('\n');
   if (!texto) return;
   history.replaceState(null, '', location.pathname);
-  const novos = await lerRecebido(texto);
-  if (novos.length) painelRecebida(novos, codigoDoEndereco(texto) ? 'link' : 'texto');
-  else aviso('Não encontrei itens no que foi compartilhado');
+  if (!(await receber(texto, 'texto'))) aviso('Não encontrei itens no que foi compartilhado');
 }
 
 // ---------------------------------------------------------------- instalar e atualizar

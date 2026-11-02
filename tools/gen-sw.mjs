@@ -30,7 +30,8 @@ const DIST = join(RAIZ, 'dist');
 /** Arquivos que não entram no cache: o próprio SW e mapas de depuração. */
 // `.nojekyll` e um arquivo vazio que so diz ao GitHub Pages para publicar a
 // pasta como esta. Nao tem por que ocupar espaco no cache do aparelho.
-const IGNORADOS = new Set(['sw.js', '.nojekyll']);
+// og.png é só para a prévia do link no WhatsApp: não precisa ficar no aparelho.
+const IGNORADOS = new Set(['sw.js', '.nojekyll', 'og.png']);
 // `.woff` é a reserva de navegadores antigos; o `.woff2` já vai no cache.
 const EXTENSOES_IGNORADAS = ['.map', '.woff'];
 

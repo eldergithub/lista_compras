@@ -1,6 +1,8 @@
-# Lista de Compras
+# NaLista
 
-App de lista de compras para o celular (PWA): monte a lista, envie por link para quem vai comprar e marque os itens no mercado — mesmo sem internet.
+**Monte, mande, marque.** App de listas para o celular (PWA): quem precisa monta a lista e manda por link; quem vai comprar marca item por item — no mercado, na farmácia ou onde for — e devolve o retorno. Funciona sem internet.
+
+Marca e design system: tokens, símbolo, ícones e componentes no design system **NaLista** (Claude).
 
 **Abrir:** https://eldergithub.github.io/lista_compras/
 
@@ -12,8 +14,9 @@ App de lista de compras para o celular (PWA): monte a lista, envie por link para
 - **Detalhes do item:** toque no nome para mudar nome, observação (`maduras`, `marca X`), categoria e quantidade.
 - Item repetido soma a quantidade; remover, apagar e importar têm **Desfazer**.
 - **Na hora da compra:** o que já foi pego desce para o fim e as categorias resolvidas vão para baixo. No botão **R$** de cada item: anotar quanto deu ou marcar **não tinha**. O total aparece no topo; toque nele para definir um **orçamento**. A tela não apaga enquanto houver itens para pegar. **Começar nova compra** zera marcas e preços.
+- **Retorno da compra:** quem comprou toca em **Enviar → Enviar retorno** (ou no botão do fim da compra). Quem montou abre o link e vê o que foi comprado, o que não tinha, o que ficou e o total, e pode **fazer a próxima lista com o que faltou**.
 - **Enviar:** link com a lista dentro (WhatsApp, Telegram…), QR code ou texto.
-- **Importar:** cola um link, o texto do app ou uma lista simples. Com o app instalado no Android, dá para **compartilhar** uma mensagem direto com o app "Compras".
+- **Importar:** cola um link, o texto do app ou uma lista simples. Com o app instalado no Android, dá para **compartilhar** uma mensagem direto com o app "NaLista".
 - **Instalar:** no Android, o Chrome oferece "Instalar". No iPhone, Safari → Compartilhar → Adicionar à Tela de Início.
 
 A lista fica só no aparelho. O link leva a lista depois do `#`, parte do endereço que não vai para o servidor.
@@ -30,4 +33,4 @@ npm run build    # gera dist/ e fecha o service worker
 Cada `git push` no `main` roda os testes e publica no GitHub Pages (`.github/workflows/publicar.yml`).
 Para ativar uma vez: Settings → Pages → Source: **GitHub Actions**.
 
-Ícones PNG: `node tools/gen-icons.mjs` (usa o Playwright instalado na máquina).
+Ícones PNG e a imagem de prévia do link (`public/og.png`): `node tools/gen-icons.mjs` (usa o Playwright instalado na máquina).

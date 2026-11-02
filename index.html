@@ -8,10 +8,18 @@
   <meta name="color-scheme" content="light dark">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Compras">
+  <meta name="apple-mobile-web-app-title" content="NaLista">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="description" content="Lista de compras para o celular: monte, envie por link e marque no mercado, mesmo sem internet.">
-  <title>Lista de Compras</title>
+  <meta name="description" content="Monte a lista, mande pelo WhatsApp e marque item por item, no mercado, na farmácia ou onde for. Funciona sem internet.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="NaLista">
+  <meta property="og:title" content="Chegou uma lista para você">
+  <meta property="og:description" content="Toque para abrir a lista no NaLista e ir marcando.">
+  <meta property="og:image" content="https://eldergithub.github.io/lista_compras/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>NaLista</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
   <link rel="apple-touch-icon" href="/icons/icon-180.png">
@@ -19,7 +27,7 @@
 <body>
   <div class="app">
     <header>
-      <h1>Lista de Compras</h1>
+      <h1 class="marca"><img src="/icons/icon.svg" alt="" width="36" height="36"><span><span class="na">Na</span>Lista</span></h1>
       <div class="meta"><span id="contagem"></span><span id="dica">Toque para marcar</span></div>
       <div class="barra"><span id="barra"></span></div>
       <button class="gasto" id="gasto" type="button" hidden></button>
@@ -32,7 +40,7 @@
     </header>
     <div id="adicionar"></div>
     <main id="lista"></main>
-    <div class="tudo" id="tudo">Tudo no carrinho. Boa compra!</div>
+    <div class="tudo" id="tudo"></div>
     <button class="limpar" id="limpar" type="button"></button>
   </div>
   <div class="fundo" id="fundo"><div class="painel" id="painel" role="dialog" aria-modal="true"></div></div>

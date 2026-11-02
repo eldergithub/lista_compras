@@ -1,15 +1,15 @@
 /* Uma coluna; cabeçalho fixo com progresso e as ações; linhas grandes para o polegar. */
 :root {
-  --bg: #f3f5f1; --superficie: #ffffff; --texto: #1d2420; --suave: #6b756f; --linha: #dde3dc;
-  --destaque: #2f7d4f; --destaque-leve: #e2f0e6; --feito: #9aa59f; --perigo: #b4432f;
+  --bg: #f3f5f1; --superficie: #ffffff; --texto: #1d2420; --suave: #56605a; --linha: #dde3dc; --linha-forte: #78827c;
+  --destaque: #2f7d4f; --destaque-forte: #1f5a37; --destaque-leve: #e2f0e6; --feito: #56605a; --perigo: #b4432f; --laranja-texto: #a8521a;
   --titulo: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --corpo: "Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121614; --superficie: #1b211e; --texto: #e8ede9; --suave: #93a099; --linha: #2b3430;
-    --destaque: #5cc488; --destaque-leve: #1f3a2a; --feito: #5d6862; --perigo: #e07a63;
+    --bg: #121614; --superficie: #1b211e; --texto: #e8ede9; --suave: #a3afa8; --linha: #2b3430; --linha-forte: #6f7b74;
+    --destaque: #5cc488; --destaque-forte: #7fd3a0; --destaque-leve: #1f3a2a; --feito: #a3afa8; --perigo: #e07a63; --laranja-texto: #f0a866;
     color-scheme: dark;
   }
 }
@@ -28,7 +28,10 @@ header {
   position: sticky; top: 0; z-index: 5; background: var(--bg); display: grid; gap: 10px;
   padding-top: calc(12px + env(safe-area-inset-top, 0px)); padding-bottom: 12px;
 }
-h1 { font-family: var(--titulo); font-weight: 800; font-size: 1.9rem; margin: 0; letter-spacing: -.01em; }
+h1 { font-family: var(--titulo); font-weight: 800; font-size: 1.9rem; margin: 0; letter-spacing: -.02em; }
+.marca { display: flex; align-items: center; gap: 10px; }
+.marca img { flex: none; border-radius: 9px; }
+.marca .na { font-weight: 600; color: var(--destaque); }
 .meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--suave); font-size: .95rem; }
 #contagem { font-variant-numeric: tabular-nums; }
 #contagem b { color: var(--texto); }
@@ -40,7 +43,9 @@ h1 { font-family: var(--titulo); font-weight: 800; font-size: 1.9rem; margin: 0;
   font: inherit; font-size: .95rem; font-weight: 700; padding: 11px 10px; min-height: 46px;
   border-radius: 12px; border: 1px solid var(--linha); background: var(--superficie); color: var(--texto); cursor: pointer;
 }
-.btn.primario { background: var(--destaque); border-color: var(--destaque); color: var(--superficie); }
+.btn.primario { background: var(--destaque); border-color: var(--destaque); color: #fff; }
+.btn.primario:active { background: var(--destaque-forte); border-color: var(--destaque-forte); }
+@media (prefers-color-scheme: dark) { .btn.primario { color: #0e1a13; } }
 .btn.grande { width: 100%; min-height: 54px; font-size: 1.05rem; }
 .btn.discreto { background: transparent; border-color: transparent; color: var(--suave); }
 .btn:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
@@ -63,7 +68,7 @@ li + li { border-top: 1px solid var(--linha); }
 
 .linha { display: flex; align-items: center; gap: 14px; padding: 15px 16px; min-height: 56px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .linha input { position: absolute; opacity: 0; pointer-events: none; }
-.caixa { flex: none; width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--linha); display: grid; place-items: center; transition: background .15s, border-color .15s; }
+.caixa { flex: none; width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--linha-forte); display: grid; place-items: center; transition: background .15s, border-color .15s; }
 .caixa svg { width: 16px; height: 16px; opacity: 0; stroke: var(--superficie); }
 .nome { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .qtd { font-weight: 700; font-size: .95rem; font-variant-numeric: tabular-nums; background: var(--destaque-leve); padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
@@ -74,12 +79,12 @@ li + li { border-top: 1px solid var(--linha); }
 .linha input:focus-visible + .caixa { outline: 3px solid var(--destaque); outline-offset: 2px; }
 
 .linha-ed { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 8px; padding: 10px 12px; min-height: 56px; }
-.passo { display: flex; align-items: center; border: 1px solid var(--linha); border-radius: 10px; overflow: hidden; }
+.passo { display: flex; align-items: center; border: 1px solid var(--linha-forte); border-radius: 10px; overflow: hidden; }
 .passo button { width: 40px; height: 40px; border: 0; background: transparent; color: var(--texto); font: inherit; font-size: 1.25rem; cursor: pointer; }
 .passo span { min-width: 38px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
 select, .texto {
   font: inherit; font-size: .95rem; color: var(--texto); background: var(--superficie);
-  border: 1px solid var(--linha); border-radius: 10px; height: 42px; padding: 0 8px;
+  border: 1px solid var(--linha-forte); border-radius: 10px; height: 42px; padding: 0 8px;
 }
 .remover { width: 40px; height: 40px; border: 0; background: transparent; color: var(--perigo); font-size: 1.4rem; cursor: pointer; border-radius: 10px; }
 .novo { margin-top: 10px; background: var(--superficie); border: 1px solid var(--linha); border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
@@ -131,13 +136,13 @@ textarea {
 .chips:empty { display: none; }
 .chip {
   font: inherit; font-size: .95rem; padding: 8px 12px; min-height: 40px; border-radius: 99px;
-  border: 1px solid var(--linha); background: var(--bg); color: var(--texto); cursor: pointer;
+  border: 1px solid var(--linha-forte); background: var(--bg); color: var(--texto); cursor: pointer;
 }
-.chip.meu { border-color: var(--destaque); }
+.chip.meu { border: 2px solid var(--destaque); }
 .previa { list-style: none; margin: 0; padding: 0; border: 0; background: transparent; display: grid; gap: 6px; }
 .previa li { border: 0; padding: 8px 10px; border-radius: 10px; background: var(--destaque-leve); font-size: .95rem; }
 .previa .qtd { background: var(--superficie); }
-.ja { font-size: .8rem; font-weight: 700; color: var(--destaque); margin-left: 4px; }
+.ja { font-size: .8rem; font-weight: 700; color: var(--destaque-forte); margin-left: 4px; }
 .atalho { margin-top: 18px; }
 .repetir { width: 100%; margin-top: 14px; }
 .campo { display: grid; gap: 6px; font-weight: 700; font-size: .9rem; color: var(--suave); }
@@ -145,7 +150,7 @@ textarea {
 .campo .fileira select { width: auto; flex: 1; }
 .btn.perigo { color: var(--perigo); }
 .limpar[hidden] { display: none; }
-.aviso { display: flex; align-items: center; gap: 14px; max-width: calc(100vw - 32px); }
+.aviso { display: flex; align-items: center; gap: 14px; width: max-content; max-width: calc(100vw - 32px); }
 .aviso.com-acao { pointer-events: auto; }
 .aviso button { font: inherit; font-weight: 700; color: var(--destaque-leve); background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; }
 @media (prefers-color-scheme: dark) { .aviso button { color: var(--destaque); } }
@@ -155,7 +160,7 @@ textarea {
 .linha-compra .linha { flex: 1; min-width: 0; padding-right: 8px; }
 .preco-bt {
   flex: none; min-width: 64px; margin: 8px 10px 8px 0; padding: 0 10px; border-radius: 10px;
-  border: 1px dashed var(--linha); background: transparent; color: var(--suave);
+  border: 1px dashed var(--linha-forte); background: transparent; color: var(--suave);
   font: inherit; font-size: .9rem; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer;
 }
 .preco-bt.tem { border-style: solid; color: var(--texto); }
@@ -167,7 +172,12 @@ li.faltou .caixa { border-style: dashed; }
   justify-self: start; font: inherit; font-size: .95rem; color: var(--suave); background: none; border: 0; padding: 2px 0; cursor: pointer; text-align: left;
 }
 .gasto b { color: var(--texto); font-variant-numeric: tabular-nums; }
+.gasto b { color: var(--laranja-texto); }
 .gasto.passou, .gasto.passou b { color: var(--perigo); font-weight: 700; }
 .gasto[hidden] { display: none; }
 .tudo span { display: block; font-weight: 400; color: var(--suave); margin-top: 4px; }
 .preco-campo { font-size: 1.4rem !important; height: 56px !important; font-variant-numeric: tabular-nums; }
+
+/* Fase 5: retorno */
+.painel .sub { margin: 8px 0 0; font-family: var(--titulo); font-size: .82rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--suave); }
+.tudo .btn { margin-top: 12px; }

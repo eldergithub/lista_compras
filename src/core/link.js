@@ -1,5 +1,6 @@
 /**
  * A lista dentro do link: `.../lista_compras/#l=<código>`.
+ * O retorno da compra usa o mesmo código, em `#r=` (ver retorno.js).
  *
  * Fica depois do `#` de propósito: essa parte do endereço nunca vai para o
  * servidor. A lista passa de um celular para o outro sem ninguém no meio.
@@ -65,8 +66,14 @@ function descompactar(dados) {
     });
 }
 
-export async function codificar(itens) {
-  const bytes = new TextEncoder().encode(JSON.stringify(compactar(itens)));
+export const codificar = (itens) => codificarDados(compactar(itens));
+export async function decodificar(codigo) {
+  return descompactar(await decodificarDados(codigo));
+}
+
+/** Qualquer dado em JSON → código curto para o link (usado pela lista e pelo retorno). */
+export async function codificarDados(dados) {
+  const bytes = new TextEncoder().encode(JSON.stringify(dados));
   if (typeof CompressionStream === 'function') {
     try {
       return 'z' + paraBase64Url(await passarPor(bytes, new CompressionStream('deflate-raw')));
@@ -75,7 +82,7 @@ export async function codificar(itens) {
   return 'j' + paraBase64Url(bytes);
 }
 
-export async function decodificar(codigo) {
+export async function decodificarDados(codigo) {
   const tipo = codigo[0];
   let bytes = deBase64Url(codigo.slice(1));
   if (tipo === 'z') {
@@ -83,7 +90,7 @@ export async function decodificar(codigo) {
   } else if (tipo !== 'j') {
     throw new Error('Link de lista inválido');
   }
-  return descompactar(JSON.parse(new TextDecoder().decode(bytes)));
+  return JSON.parse(new TextDecoder().decode(bytes));
 }
 
 /** Endereço do app + a lista: funciona na raiz e em subpasta do Pages. */
@@ -96,4 +103,15 @@ export async function montarLink(itens, endereco) {
 export function codigoDoEndereco(hash) {
   const m = String(hash).match(/[#&]l=([A-Za-z0-9_-]+)/);
   return m ? m[1] : null;
+}
+
+/** O código de um retorno de compra (`#r=`), ou null. */
+export function codigoDeRetorno(hash) {
+  const m = String(hash).match(/[#&]r=([A-Za-z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+/** Endereço do app + um retorno já codificado. */
+export function montarLinkDeRetorno(codigo, endereco) {
+  return `${endereco.split('#')[0].split('?')[0]}#r=${codigo}`;
 }

@@ -1,17 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="112" fill="#2f7d4f"/>
-  <g transform="translate(256 262)">
-    <rect x="-128" y="-150" width="256" height="300" rx="28" fill="#f3f5f1"/>
-    <rect x="-56" y="-172" width="112" height="48" rx="16" fill="#1d2420"/>
-    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="-92" y="-82" width="40" height="40" rx="10" fill="#2f7d4f"/>
-      <path d="M-84 -62 l10 10 l18 -20" stroke="#f3f5f1" stroke-width="9"/>
-      <path d="M-28 -62 H92" stroke="#9aa59f" stroke-width="16"/>
-      <rect x="-92" y="-10" width="40" height="40" rx="10" fill="#2f7d4f"/>
-      <path d="M-84 10 l10 10 l18 -20" stroke="#f3f5f1" stroke-width="9"/>
-      <path d="M-28 10 H72" stroke="#9aa59f" stroke-width="16"/>
-      <rect x="-92" y="62" width="40" height="40" rx="10" stroke="#c9d1ca" stroke-width="7"/>
-      <path d="M-28 82 H92" stroke="#1d2420" stroke-width="16"/>
-    </g>
-  </g>
+  <rect width="512" height="512" rx="116" fill="#2F7D4F"/>
+  <path d="M164 104 H320 L384 168 V372 Q384 408 348 408 H164 Q128 408 128 372 V140 Q128 104 164 104 Z" fill="#FFFFFF"/>
+  <path d="M320 104 V148 Q320 168 340 168 H384 Z" fill="#E9822F"/>
+  <path d="M166 210 L192 236 L238 186" fill="none" stroke="#2F7D4F" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M276 214 H340" fill="none" stroke="#C9D1CA" stroke-width="22" stroke-linecap="round"/>
+  <path d="M172 288 H340" fill="none" stroke="#DDE3DC" stroke-width="22" stroke-linecap="round"/>
+  <path d="M172 352 H284" fill="none" stroke="#DDE3DC" stroke-width="22" stroke-linecap="round"/>
 </svg>

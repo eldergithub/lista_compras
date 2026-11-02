@@ -1,7 +1,7 @@
 {
-  "name": "Lista de Compras",
-  "short_name": "Compras",
-  "description": "Monte a lista, envie por link e marque no mercado, mesmo sem internet.",
+  "name": "NaLista",
+  "short_name": "NaLista",
+  "description": "Monte a lista, mande pelo WhatsApp e marque item por item, no mercado, na farmácia ou onde for.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",

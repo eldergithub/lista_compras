@@ -8,6 +8,8 @@ import { criarItem, juntar, adicionarItens, LISTA_INICIAL, formatarQtd } from '.
 import { paraTexto, lerTexto, lerEntrada, separarItens } from '../src/core/texto.js';
 import { procurarNoCatalogo, sugerirDoCatalogo } from '../src/core/catalogo.js';
 import { registrar, sugerir, deSempre } from '../src/core/historico.js';
+import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from '../src/core/retorno.js';
+import { codigoDeRetorno, montarLinkDeRetorno } from '../src/core/link.js';
 import { ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra } from '../src/core/compra.js';
 import { codificar, decodificar, montarLink, codigoDoEndereco } from '../src/core/link.js';
 
@@ -132,6 +134,29 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   ok(formatarPreco(51.4) === 'R$ 51,40', 'formata em reais');
   const nova = novaCompra(c);
   ok(nova.every((i) => !i.feito && !i.faltou && i.preco === undefined) && nova[1].qtd === 1, 'nova compra limpa marcas e preços');
+}
+
+// Retorno da compra
+{
+  const c = [
+    { ...criarItem('Pão', 'Padaria'), feito: true, preco: 8.5 },
+    { ...criarItem('Carne', 'Açougue', 1.5, 'kg'), feito: true, preco: 42.9 },
+    { ...criarItem('Gorgonzola', 'Frios e laticínios', 200, 'g'), faltou: true },
+    { ...criarItem('Balão', 'Festa', 10) },
+  ];
+  const cod = await codificarRetorno(c, 1700000000000);
+  const link = montarLinkDeRetorno(cod, 'https://eldergithub.github.io/lista_compras/#l=velho');
+  ok(link === 'https://eldergithub.github.io/lista_compras/#r=' + cod && codigoDeRetorno(new URL(link).hash) === cod, 'link de retorno');
+  ok(codigoDoEndereco(new URL(link).hash) === null, 'retorno não é confundido com lista');
+  const r = await decodificarRetorno(cod);
+  ok(r.data === 1700000000000 && r.pegos.length === 2 && r.faltaram[0].nome === 'Gorgonzola' && r.naoComprados[0].cat === 'Festa', 'retorno volta separado por situação');
+  ok(r.gasto === 51.4 && r.pegos[1].qtd === 1.5 && r.faltaram[0].un === 'g', 'retorno mantém preço, quantidade e unidade');
+  ok(igual(oQueFaltou(r).map((i) => i.nome), ['Gorgonzola', 'Balão']), 'o que faltou: não tinha + não comprou');
+  const t = textoDoRetorno(c);
+  ok(t.includes('Comprei (2)') && t.includes('Carne — 1,5 kg (R$ 42,90)') && t.includes('Não tinha (1)') && t.includes('Total: R$ 51,40'), 'texto do retorno');
+  let recusou = false;
+  try { await decodificarRetorno(await codificar([criarItem('x', 'Outros')])); } catch { recusou = true; }
+  ok(recusou, 'código de lista não passa como retorno');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);
