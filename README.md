@@ -11,6 +11,7 @@ Marca e design system: tokens, símbolo, ícones e componentes no design system 
 - **Uma tela só:** marque na caixinha, toque no nome para observação, preço e "não tinha", toque na quantidade para usar − e +, arraste o item para o lado para tirar (com Desfazer). Não existe modo de edição.
 - **Barra de baixo:** escreva vários itens de uma vez — `2 kg frango, pão, 6 leite zero lactose`, `meia dúzia de ovos`. A prévia mostra quantidade, observação e categoria antes de entrar. O botão de grade abre listas prontas, a última compra e a escolha por categoria.
 - **Falar pelo app:** o microfone abre o ditado. Pode falar tudo seguido ("frango pão seis leites"): cada item vira uma linha na hora, dá para tirar com ×, e o microfone religa sozinho quando o Chrome do Android desliga (precisa de internet).
+- **Suas listas prontas:** ⋯ → Salvar como lista pronta guarda os itens (com quantidade e observação) para montar outra igual depois; aparecem em Listas prontas, com renomear e apagar.
 - **Observações:** ditas ou digitadas junto com o nome ("leite zero lactose", "café da marca X") ou tocadas nas sugestões de cada categoria, nos detalhes do item.
 - **Escolher por categoria:** grade de itens por categoria, conforme o tipo da lista; um toque põe na lista, outro toque aumenta a quantidade.
 - **Listas prontas:** compra do mês, feira, café da manhã, churrasco, farmácia de casa, limpeza, pequenos reparos, aniversário e viagem. Escolha uma, desmarque o que não precisa e adicione tudo de uma vez.

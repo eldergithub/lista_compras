@@ -45,11 +45,15 @@ export const salvarListas = (estado) => gravar(LISTAS, estado);
 export const carregarCompras = () => { const v = ler(COMPRAS, []); return Array.isArray(v) ? v : []; };
 export const salvarCompras = (c) => gravar(COMPRAS, c);
 
+const PRONTAS = 'nalista-prontas-v1';
+export const carregarProntas = () => { const v = ler(PRONTAS, []); return Array.isArray(v) ? v : []; };
+export const salvarProntas = (p) => gravar(PRONTAS, p);
+
 /** Tudo o que vai no backup, e o caminho de volta. */
 export function lerTudo() {
   return {
     listas: carregarListas(), historico: carregarHistorico(), ultima: carregarUltima(),
-    compras: carregarCompras(), orcamento: carregarOrcamento(),
+    compras: carregarCompras(), orcamento: carregarOrcamento(), prontas: carregarProntas(),
   };
 }
 export function gravarTudo(d) {
@@ -58,4 +62,5 @@ export function gravarTudo(d) {
   salvarUltima(d.ultima || null);
   salvarCompras(Array.isArray(d.compras) ? d.compras : []);
   salvarOrcamento(typeof d.orcamento === 'number' ? d.orcamento : null);
+  salvarProntas(Array.isArray(d.prontas) ? d.prontas : []);
 }

@@ -16,6 +16,7 @@ import { criarLista, migrar, listaAtiva, nomeLivre, listasPorUso, listaDoComplem
 import { registroDaCompra, guardarCompra, guardarOuAtualizar, totalDoMes, itensQueFaltaram } from './core/compras.js';
 import { montarBackup, lerBackup, nomeDoArquivo } from './core/backup.js';
 import { modelosPara, itensDoModelo } from './core/modelos.js';
+import { criarPronta, guardarPronta, existePronta, apagarPronta, renomearPronta, prontasPara, itensDaPronta, marcarUso } from './core/prontas.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from './core/retorno.js';
 import { sugestoesDeObs, alternarObs, temObs } from './core/observacoes.js';
 import { juntarOuvidos, textoDaSessao, limparFala, separarPendente } from './core/fala.js';
@@ -26,7 +27,7 @@ import {
 import {
   carregar, carregarHistorico, salvarHistorico, carregarUltima,
   carregarOrcamento, salvarOrcamento, carregarListas, salvarListas, carregarCompras, salvarCompras,
-  lerTudo, gravarTudo,
+  lerTudo, gravarTudo, carregarProntas, salvarProntas,
 } from './storage.js';
 
 // ---------------------------------------------------------------- estado
@@ -38,6 +39,7 @@ if (!guardadoAntes && carregarUltima()) estado.listas[0].ultima = carregarUltima
 let lista = listaAtiva(estado);
 let itens = lista.itens;
 let historico = carregarHistorico();
+let prontas = carregarProntas();
 let compras = carregarCompras();
 let orcamento = carregarOrcamento();
 function guardar() {
@@ -89,6 +91,8 @@ painelCompras = navegavel(painelCompras);
 painelUmaCompra = navegavel(painelUmaCompra);
 painelBackup = navegavel(painelBackup);
 painelSugestoes = navegavel(painelSugestoes);
+painelSalvarPronta = navegavel(painelSalvarPronta);
+painelRenomearPronta = navegavel(painelRenomearPronta);
 
 // ---------------------------------------------------------------- avisos e desfazer
 let antesDeDesfazer = null;
@@ -829,7 +833,8 @@ function painelMais() {
   abrirPainel(`<h3>Mais opções</h3>
     <ul class="listas">
       ${opcao('mImportar', 'Importar uma lista', 'Cole o link ou o texto que você recebeu')}
-      ${opcao('mProntas', 'Listas prontas', 'Mês, feira, churrasco, farmácia e outras')}
+      ${opcao('mProntas', 'Listas prontas', prontas.length ? `${plural(prontas.length, 'sua', 'suas')} e as do app` : 'Mês, feira, churrasco, farmácia e outras')}
+      ${itens.length ? opcao('mSalvarPronta', 'Salvar como lista pronta', `Guarda os itens de ${esc(lista.nome)} para usar de novo`) : ''}
       ${faltaNaLista > 0 ? opcao('mRepetir', 'Repetir a última compra', `${plural(faltaNaLista, 'item volta', 'itens voltam')} para ${esc(lista.nome)}`) : ''}
       ${opcao('mOrcamento', 'Orçamento', orcamento ? `Até ${formatarPreco(orcamento)}` : 'Avisa quando o total passar do valor')}
       ${itens.some(resolvido) ? opcao('mZerar', 'Começar nova compra', 'Zera as marcas e os preços, mantém os itens') : ''}
@@ -842,6 +847,7 @@ function painelMais() {
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
   $('mImportar').onclick = painelImportar;
   $('mProntas').onclick = painelModelos;
+  if ($('mSalvarPronta')) $('mSalvarPronta').onclick = () => painelSalvarPronta();
   if ($('mRepetir')) $('mRepetir').onclick = () => {
     marcarParaDesfazer();
     const antes = itens.length;
@@ -1277,34 +1283,51 @@ async function lerCompartilhado() {
 // ---------------------------------------------------------------- listas prontas
 function painelModelos() {
   const naLista = new Set(itens.map((i) => i.nome.toLowerCase()));
+  const linha = (m, todos, attr) => {
+    const faltam = todos.filter((i) => !naLista.has(i.nome.toLowerCase())).length;
+    const resumo = faltam === todos.length ? plural(todos.length, 'item', 'itens') : `${faltam} de ${todos.length} fora da lista`;
+    return `<li><button type="button" class="lista-linha" ${attr}>${iconeTipo(m.tipo)}<span class="nome">${esc(m.nome)}<small>${m.descricao ? `${esc(m.descricao)} · ` : ''}${resumo}</small></span></button></li>`;
+  };
+  const minhas = prontasPara(prontas, lista.tipo);
   abrirPainel(`<h3>Listas prontas</h3>
     <p>Escolha uma, desmarque o que não precisa e adicione tudo de uma vez em ${esc(lista.nome)}.</p>
-    <ul class="listas">${modelosPara(lista.tipo).map((m) => {
-      const total = itensDoModelo(m).length;
-      const faltam = itensDoModelo(m).filter((i) => !naLista.has(i.nome.toLowerCase())).length;
-      return `<li><button type="button" class="lista-linha" data-modelo="${m.id}">${iconeTipo(m.tipo)}<span class="nome">${esc(m.nome)}<small>${esc(m.descricao)} · ${faltam === total ? plural(total, 'item', 'itens') : `${faltam} de ${total} fora da lista`}</small></span></button></li>`;
-    }).join('')}</ul>
+    ${itens.length ? `<button class="btn grande" id="mSalvar" type="button">+ Salvar ${esc(lista.nome)} como lista pronta</button>` : ''}
+    ${minhas.length ? `<h4 class="sub">Suas</h4><ul class="listas">${minhas.map((m) => linha(m, itensDaPronta(m), `data-minha="${m.id}"`)).join('')}</ul>` : ''}
+    <h4 class="sub">${minhas.length ? 'Do app' : 'Sugestões do app'}</h4>
+    <ul class="listas">${modelosPara(lista.tipo).map((m) => linha(m, itensDoModelo(m), `data-modelo="${m.id}"`)).join('')}</ul>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
+  if ($('mSalvar')) $('mSalvar').onclick = () => painelSalvarPronta();
   painel.querySelectorAll('[data-modelo]').forEach((b) => {
     b.onclick = () => painelModelo(modelosPara(lista.tipo).find((m) => m.id === b.dataset.modelo));
   });
+  painel.querySelectorAll('[data-minha]').forEach((b) => {
+    b.onclick = () => painelModelo(prontas.find((m) => m.id === b.dataset.minha));
+  });
 }
 
+/** Uma lista pronta (do app ou da pessoa): escolher o que entra. As da pessoa também se renomeiam e apagam. */
 function painelModelo(m) {
+  // Ao voltar para uma lista pronta da pessoa, pega a versão atual (pode ter sido renomeada).
+  m = prontas.find((p) => p.id === m.id) || m;
+  const propria = prontas.some((p) => p.id === m.id);
   const naLista = new Set(itens.map((i) => i.nome.toLowerCase()));
-  const todos = itensDoModelo(m);
+  const todos = propria ? itensDaPronta(m) : itensDoModelo(m);
   const escolhidos = new Set(todos.filter((i) => !naLista.has(i.nome.toLowerCase())).map((i) => i.nome));
   abrirPainel(`<h3>${esc(m.nome)}</h3>
-    <p>Toque para tirar ou pôr de volta. As quantidades você ajusta depois.</p>
+    <p>Toque para tirar ou pôr de volta.${propria ? '' : ' As quantidades você ajusta depois.'}</p>
     <div class="chips modelo">${todos.map((i) => {
       const ja = naLista.has(i.nome.toLowerCase());
-      return `<button type="button" class="chip escolha" data-nome="${esc(i.nome)}" aria-pressed="${escolhidos.has(i.nome)}" ${ja ? 'disabled' : ''}>${esc(i.nome)}${i.qtd != null ? ` <span class="cinza">${formatarQtd(i)}</span>` : ''}${ja ? ' <span class="cinza">já na lista</span>' : ''}</button>`;
+      return `<button type="button" class="chip escolha" data-nome="${esc(i.nome)}" aria-pressed="${escolhidos.has(i.nome)}" ${ja ? 'disabled' : ''}>${esc(i.nome)}${i.qtd != null ? ` <span class="cinza">${formatarQtd(i)}</span>` : ''}${i.obs ? ` <span class="cinza">(${esc(i.obs)})</span>` : ''}${ja ? ' <span class="cinza">já na lista</span>' : ''}</button>`;
     }).join('')}</div>
     <button class="btn primario grande" id="mAdicionar" type="button"></button>
     <div class="fileira">
       <button class="btn" id="mTodos" type="button">Marcar todos</button>
       <button class="btn" id="mNenhum" type="button">Desmarcar todos</button>
     </div>
+    ${propria ? `<div class="fileira">
+      <button class="btn" id="mRenomear" type="button">Renomear</button>
+      <button class="btn perigo" id="mApagar" type="button">Apagar</button>
+    </div>` : ''}
     <button class="btn discreto" id="mVoltar" type="button">Voltar</button>`);
   const botoes = [...painel.querySelectorAll('.escolha:not([disabled])')];
   const atualizar = () => {
@@ -1318,12 +1341,76 @@ function painelModelo(m) {
   $('mNenhum').onclick = () => { escolhidos.clear(); atualizar(); };
   $('mVoltar').onclick = voltarPainel;
   $('mAdicionar').onclick = () => {
-    const novos = paraItens(todos.filter((i) => escolhidos.has(i.nome)).map((i) => ({ nome: i.nome, cat: i.cat, qtd: i.qtd, un: i.un, unDita: i.qtd != null })));
+    const escolha = todos.filter((i) => escolhidos.has(i.nome));
+    // As da pessoa entram como foram guardadas (quantidade, unidade, observação); as do app passam pelo histórico.
+    const novos = propria
+      ? escolha.map((i) => ({ ...i }))
+      : paraItens(escolha.map((i) => ({ nome: i.nome, cat: i.cat, qtd: i.qtd, un: i.un, unDita: i.qtd != null })));
+    if (propria) { prontas = marcarUso(prontas, m.id); salvarProntas(prontas); }
     fecharPainel();
-    
     adicionar(novos);
   };
+  if (propria) {
+    $('mRenomear').onclick = () => painelRenomearPronta(m);
+    const apagar = $('mApagar');
+    apagar.onclick = () => {
+      if (!apagar.classList.contains('armado')) { apagar.classList.add('armado'); apagar.textContent = 'Toque de novo'; return; }
+      const antes = prontas;
+      prontas = apagarPronta(prontas, m.id); salvarProntas(prontas);
+      voltarPainel();
+      aviso(`Lista pronta ${m.nome} apagada`, true, () => { prontas = antes; salvarProntas(prontas); if (fundo.classList.contains('aberto') && pilha[pilha.length - 1]?.reabrir) pilha[pilha.length - 1].reabrir(); });
+    };
+  }
   atualizar();
+}
+
+/** Guardar a lista aberta como lista pronta, para usar de novo depois. */
+function painelSalvarPronta() {
+  const comQtd = itens.some((i) => i.qtd != null);
+  abrirPainel(`<h3>Salvar como lista pronta</h3>
+    <p>Os ${plural(itens.length, 'item', 'itens')} de ${esc(lista.nome)} ficam guardados para montar outra lista igual depois. Marcas, preços e "não tinha" não vão junto.</p>
+    <label class="campo">Nome da lista pronta<input class="texto" id="spNome" value="${esc(lista.nome)}" autocomplete="off" maxlength="60" enterkeyhint="done"></label>
+    ${comQtd ? '<label class="marcar"><input type="checkbox" id="spQtd" checked> Guardar as quantidades</label>' : ''}
+    <p class="obs" id="spAviso" hidden></p>
+    <button class="btn primario grande" id="spSalvar" type="button">Salvar lista pronta</button>
+    <button class="btn discreto" id="spVoltar" type="button">Cancelar</button>`);
+  const nome = $('spNome');
+  const conferir = () => {
+    const ja = existePronta(prontas, nome.value.trim());
+    $('spAviso').hidden = !ja;
+    $('spAviso').textContent = ja ? `Já existe uma lista pronta com esse nome: ela será trocada por esta.` : '';
+    $('spSalvar').textContent = ja ? `Trocar a lista pronta ${nome.value.trim()}` : 'Salvar lista pronta';
+  };
+  nome.addEventListener('input', conferir);
+  conferir();
+  const salvar = () => {
+    if (!nome.value.trim()) { nome.focus(); return; }
+    const p = criarPronta(nome.value, lista.tipo, itens, { comQuantidades: $('spQtd') ? $('spQtd').checked : false });
+    const r = guardarPronta(prontas, p);
+    prontas = r.prontas; salvarProntas(prontas);
+    voltarPainel();
+    aviso(r.substituiu ? `Lista pronta ${p.nome} atualizada` : `Lista pronta ${p.nome} salva`);
+  };
+  $('spSalvar').onclick = salvar;
+  nome.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); salvar(); } });
+  $('spVoltar').onclick = voltarPainel;
+}
+
+function painelRenomearPronta(m) {
+  abrirPainel(`<h3>Renomear lista pronta</h3>
+    <label class="campo">Nome<input class="texto" id="rpNome" value="${esc(m.nome)}" autocomplete="off" maxlength="60" enterkeyhint="done"></label>
+    <button class="btn primario grande" id="rpSalvar" type="button">Salvar</button>
+    <button class="btn discreto" id="rpVoltar" type="button">Cancelar</button>`);
+  const salvar = () => {
+    const novas = renomearPronta(prontas, m.id, $('rpNome').value);
+    if (!novas) { aviso($('rpNome').value.trim() ? 'Já existe uma lista pronta com esse nome' : 'Escreva um nome'); return; }
+    prontas = novas; salvarProntas(prontas);
+    voltarPainel(); // a lista pronta reabre já com o nome novo
+    aviso('Nome trocado');
+  };
+  $('rpSalvar').onclick = salvar;
+  $('rpNome').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); salvar(); } });
+  $('rpVoltar').onclick = voltarPainel;
 }
 
 // ---------------------------------------------------------------- várias listas

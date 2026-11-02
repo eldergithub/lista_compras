@@ -26,6 +26,8 @@ import { codificar, decodificar, montarLink, codigoDoEndereco } from '../src/cor
 import { trechoNovo, juntarOuvidos, textoDaSessao, limparFala, separarPendente } from '../src/core/fala.js';
 import { alternarObs, temObs, sugestoesDeObs } from '../src/core/observacoes.js';
 
+import { criarPronta, guardarPronta, existePronta, apagarPronta, renomearPronta, prontasPara, itensDaPronta, marcarUso } from '../src/core/prontas.js';
+
 let passou = 0, falhou = 0;
 function ok(cond, nome) {
   if (cond) { passou++; return; }
@@ -371,6 +373,28 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   ok(paraRevisar(h, 'espan').length === 1, 'revisar: busca');
   const sem = esquecer(h, 'Frango da Espanha');
   ok(!sem['frango da espanha'] && sem.pao && h['frango da espanha'], 'esquecer tira só aquele, sem mexer no original');
+}
+
+{
+  const itensLista = [{ ...criarItem('Picanha', 'Açougue', 2, 'kg'), feito: true, preco: 120 }, { ...criarItem('Carvão', 'Utilidades', 1, 'pct'), obs: 'saco grande', faltou: true }];
+  const p = criarPronta(' Churrasco ', 'mercado', itensLista, {}, 1000);
+  ok(p.nome === 'Churrasco' && p.itens.length === 2 && p.itens[0].qtd === 2 && !('preco' in p.itens[0]) && !('feito' in p.itens[0]) && p.itens[1].obs === 'saco grande', 'pronta guarda itens, quantidade e observação, sem marcas nem preço');
+  ok(criarPronta('X', 'mercado', itensLista, { comQuantidades: false }).itens.every((i) => i.qtd == null), 'pronta sem quantidades');
+  let r = guardarPronta([], p);
+  ok(r.prontas.length === 1 && !r.substituiu, 'guardar nova');
+  const p2 = criarPronta('churrasco', 'mercado', [criarItem('Linguiça', 'Açougue')], {}, 2000);
+  r = guardarPronta(r.prontas, p2);
+  ok(r.substituiu && r.prontas.length === 1 && r.prontas[0].id === p.id && r.prontas[0].itens[0].nome === 'Linguiça', 'mesmo nome substitui mantendo a identidade');
+  ok(existePronta(r.prontas, 'CHURRASCO'), 'existe ignora maiúsculas');
+  const f = criarPronta('Farmácia de casa', 'farmacia', [criarItem('Dipirona', 'Farmácia')], {}, 3000);
+  const todas = [...r.prontas, f];
+  ok(prontasPara(todas, 'farmacia')[0].nome === 'Farmácia de casa', 'prontas do tipo da lista primeiro');
+  ok(renomearPronta(todas, f.id, 'churrasco') === null && renomearPronta(todas, f.id, 'Remédios')[1].nome === 'Remédios', 'renomear recusa nome repetido');
+  ok(apagarPronta(todas, f.id).length === 1, 'apagar pronta');
+  const usados = marcarUso(todas, f.id, 9999);
+  ok(prontasPara(usados, 'mercado')[0].tipo === 'mercado', 'tipo vence uso recente');
+  const it = itensDaPronta(p);
+  ok(it[1].obs === 'saco grande' && it[0].id && it[0].feito === false, 'itens da pronta viram itens novos');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);
