@@ -92,7 +92,6 @@ painelUmaCompra = navegavel(painelUmaCompra);
 painelBackup = navegavel(painelBackup);
 painelSugestoes = navegavel(painelSugestoes);
 painelTema = navegavel(painelTema);
-painelFoto = navegavel(painelFoto);
 confirmar = navegavel(confirmar);
 painelSalvarPronta = navegavel(painelSalvarPronta);
 painelRenomearPronta = navegavel(painelRenomearPronta);
@@ -500,7 +499,6 @@ function painelEscolher() {
   abrirPainel(`<h3>Escolher itens</h3>
     <div class="atalhos-linha">
       <button class="btn" id="eProntas" type="button">Listas prontas</button>
-      <button class="btn" id="eFoto" type="button">De uma foto</button>
       ${faltaNaLista > 0 ? `<button class="btn" id="eRepetir" type="button">Repetir a última <span class="cinza">(+${faltaNaLista})</span></button>` : ''}
     </div>
     ${sempre.length ? `<h4 class="sub sub-acao"><span>De sempre</span><button type="button" class="link" id="eAjustar">Ajustar</button></h4><div class="chips">${sempre.map((h, n) => `<button class="chip" type="button" data-sempre="${n}">+ ${esc(h.nome)}${h.qtd != null ? ` <span class="cinza">${formatarNumero(h.qtd)} ${esc(h.un)}</span>` : ''}</button>`).join('')}</div>` : ''}
@@ -516,7 +514,6 @@ function painelEscolher() {
   const abaAtual = painel.querySelector('.aba[aria-selected="true"]');
   if (abaAtual) abaAtual.parentElement.scrollLeft = abaAtual.offsetLeft - abaAtual.parentElement.offsetLeft - 16;
   $('eProntas').onclick = painelModelos;
-  $('eFoto').onclick = () => painelFoto();
   if ($('eAjustar')) $('eAjustar').onclick = () => painelSugestoes();
   if ($('eRepetir')) {
     $('eRepetir').onclick = () => {
@@ -710,40 +707,6 @@ function painelDitado() {
   ligar();
 }
 
-// ---------------------------------------------------------------- lista de uma foto
-/**
- * Lista escrita à mão ou impressa: o Google Lens (ou o Texto ao Vivo do
- * iPhone) lê a foto e manda o texto para o NaLista, que separa os itens.
- * Nada sai do aparelho por conta do app.
- */
-function painelFoto() {
-  const android = /android/i.test(navigator.userAgent);
-  abrirPainel(`<h3>Lista de uma foto</h3>
-    <p>Funciona com lista escrita à mão ou impressa.${android ? ' O Google Lens lê a foto e manda o texto para cá.' : ' O próprio iPhone lê o texto da foto.'}</p>
-    <ol class="passos">
-      ${android
-        ? `<li>Abra o <b>Google Lens</b>, aponte para a lista e toque na <b>lupa</b> para tirar a foto.</li>
-      <li>Toque em cima de uma palavra da lista (ou em <b>Selecionar texto</b>) e depois em <b>Selecionar tudo</b>.</li>
-      <li>Toque em <b>Compartilhar</b> e escolha <b>NaLista</b>. Se ele não aparecer, toque em <b>Copiar</b> e volte aqui.</li>
-    </ol>
-    <p class="obs">No Samsung também dá pela <b>Galeria</b>: abra a foto e toque no <b>T</b> amarelo, de extrair texto.</p>
-    <ol class="passos" start="4">`
-        : `<li>Abra a <b>Câmera</b> e aponte para a lista.</li>
-      <li>Toque no ícone de <b>texto</b> no canto da foto e em <b>Selecionar tudo</b>.</li>
-      <li>Toque em <b>Copiar</b> e volte aqui.</li>`}
-      <li>Confira os itens que eu encontrar e tire o que saiu errado.</li>
-    </ol>
-    <button class="btn primario grande" id="fColar" type="button">Já copiei: colar o texto</button>
-    <button class="btn discreto" id="fVoltar" type="button">Voltar</button>`);
-  $('fVoltar').onclick = voltarPainel;
-  $('fColar').onclick = async () => {
-    let texto = '';
-    try { texto = await navigator.clipboard.readText(); } catch { /* sem permissão: cola à mão */ }
-    if (texto && (await receber(texto, 'texto'))) return;
-    painelImportar(texto ? 'Não achei itens no que foi copiado. Confira o texto abaixo.' : 'Cole aqui o texto que você copiou da foto.');
-  };
-}
-
 // ---------------------------------------------------------------- sugestões
 /**
  * O que o app aprendeu com as listas (histórico): aparece no "de sempre",
@@ -911,7 +874,6 @@ const ICONE = {
   compras: '<path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/>',
   sugestoes: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/>',
   backup: '<path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.6 1.5A3.8 3.8 0 0 1 17.5 18z"/><path d="M12 11v6M9.5 13.5L12 11l2.5 2.5"/>',
-  foto: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
   ajuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/>',
 };
 const icone = (n) => `<svg class="icone-op" viewBox="0 0 24 24" aria-hidden="true">${ICONE[n]}</svg>`;
@@ -931,7 +893,6 @@ function painelMais() {
     </ul>
     <h4 class="sub">Trazer itens</h4>
     <ul class="listas menu">
-      ${opcao('mFoto', 'foto', 'Lista de uma foto', 'Escrita à mão ou impressa, pelo Google Lens')}
       ${opcao('mImportar', 'importar', 'Importar', 'Colar um link ou texto que você recebeu')}
       ${opcao('mProntas', 'prontas', 'Listas prontas', prontas.length ? `${plural(prontas.length, 'sua', 'suas')} e as do app` : 'Mês, feira, churrasco, farmácia e outras')}
       ${opcao('mCompras', 'compras', 'Compras anteriores', compras.length ? `${plural(compras.length, 'compra', 'compras')} · repetir ou ver o que faltou` : 'O que foi pego, o que faltou e quanto deu')}
@@ -954,7 +915,6 @@ function painelMais() {
     };
   });
   $('mImportar').onclick = () => painelImportar();
-  $('mFoto').onclick = () => painelFoto();
   $('mProntas').onclick = painelModelos;
   if ($('mSalvarPronta')) $('mSalvarPronta').onclick = () => painelSalvarPronta();
   if ($('mRepetir')) $('mRepetir').onclick = () => {
@@ -1422,12 +1382,10 @@ function painelImportar(dica = '') {
     <p>${dica ? esc(dica) : 'Cole o link ou o texto que você recebeu, da lista ou do retorno da compra. Também serve uma lista simples, um item por linha ou separada por vírgula.'}</p>
     <textarea id="iTexto" placeholder="Cole aqui"></textarea>
     <button class="btn primario grande" id="iLer" type="button">Continuar</button>
-    <button class="btn" id="iFoto" type="button">Tenho a lista numa foto ou no papel</button>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
   $('iLer').onclick = async () => {
     if (!(await receber($('iTexto').value, 'texto'))) aviso('Nenhum item encontrado');
   };
-  $('iFoto').onclick = () => painelFoto();
 }
 
 async function lerLinkDoEndereco() {
