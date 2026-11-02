@@ -1,6 +1,8 @@
 /**
  * Gera os ícones PNG e a imagem de prévia do link a partir de public/icons/icon.svg
  * (rodar quando o desenho mudar):  node tools/gen-icons.mjs
+ * Ao trocar o desenho, troque também o sufixo -v2 dos nomes (aqui, no manifest e no
+ * index.html): nome novo obriga o Android a baixar o ícone de novo.
  * O maskable tem o bilhete menor sobre o verde inteiro, para o Android recortar em círculo.
  */
 import { createRequire } from 'node:module';
@@ -22,10 +24,10 @@ async function gerar(arquivo, lado, maskable = false) {
   await pagina.setContent(`<body style="margin:0;background:transparent">${corpo}</body>`);
   await pagina.screenshot({ path: saida(`icons/${arquivo}`), omitBackground: !maskable, clip: { x: 0, y: 0, width: lado, height: lado } });
 }
-await gerar('icon-192.png', 192);
-await gerar('icon-512.png', 512);
-await gerar('icon-180.png', 180, true);
-await gerar('icon-maskable-512.png', 512, true);
+await gerar('icon-192-v2.png', 192);
+await gerar('icon-512-v2.png', 512);
+await gerar('icon-180-v2.png', 180, true);
+await gerar('icon-maskable-512-v2.png', 512, true);
 
 // Prévia do link (WhatsApp, Telegram): 1200×630, com as fontes empacotadas do app.
 const fonte = (pacote, arquivo) => new URL(`../node_modules/@fontsource/${pacote}/files/${arquivo}`, import.meta.url).href;

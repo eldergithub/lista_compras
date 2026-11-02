@@ -9,6 +9,7 @@ import { paraTexto, lerTexto, lerEntrada, separarItens } from '../src/core/texto
 import { procurarNoCatalogo, sugerirDoCatalogo } from '../src/core/catalogo.js';
 import { registrar, sugerir, deSempre, gradeDaCategoria } from '../src/core/historico.js';
 import { CATEGORIAS_POR_TIPO, TIPOS } from '../src/core/categorias.js';
+import { MODELOS, modelosPara, itensDoModelo } from '../src/core/modelos.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from '../src/core/retorno.js';
 import { codigoDeRetorno, montarLinkDeRetorno, decodificarLista } from '../src/core/link.js';
 import { criarLista, migrar, nomeLivre, listaAtiva } from '../src/core/listas.js';
@@ -219,6 +220,20 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   ok(gradeDaCategoria({}, 'Farmácia').some((x) => x.nome === 'Dipirona'), 'grade de farmácia');
   ok(Object.keys(TIPOS).every((t) => CATEGORIAS_POR_TIPO[t]?.length && CATEGORIAS_POR_TIPO[t].every((c) => gradeDaCategoria({}, c).length)), 'todo tipo tem categorias com sugestões');
   ok(igual(lerEntrada('dois quilos de frango vírgula pão vírgula seis leites').map((i) => [i.nome, i.qtd]), [['Frango', 2], ['Pão', null], ['Leite', 6]]), '"vírgula" falada separa itens');
+}
+
+// Listas prontas
+{
+  for (const m of MODELOS) {
+    const its = itensDoModelo(m);
+    const semCategoria = its.filter((i) => i.cat === 'Outros').map((i) => i.nome);
+    ok(its.length >= 10 && semCategoria.length === 0, `lista pronta ${m.nome}: ${its.length} itens, todos com categoria${semCategoria.length ? ' (sem: ' + semCategoria.join(', ') + ')' : ''}`);
+    ok(new Set(its.map((i) => i.nome.toLowerCase())).size === its.length, `lista pronta ${m.nome} sem repetidos`);
+    ok(m.tipo in TIPOS, `lista pronta ${m.nome} com tipo válido`);
+  }
+  ok(modelosPara('farmacia')[0].id === 'farmacia', 'listas prontas do tipo vêm primeiro');
+  const ovos = itensDoModelo(MODELOS[0]).find((i) => i.nome === 'Ovos');
+  ok(ovos.qtd === 1 && ovos.un === 'dz', 'quantidade da lista pronta');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);

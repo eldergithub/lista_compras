@@ -47,7 +47,7 @@ const PALAVRAS = {
   'Frios e laticínios': 'leite iogurte queijo mucarela mussarela gorgonzola presunto manteiga requeijao ovo ovos creme nata margarina coalhada ricota parmesao mortadela peru',
   'Hortifrúti': 'cenoura brocolis banana uva laranja maca melancia tomate cebola alho batata alface limao mamao abacaxi manga pepino abobrinha pimentao morango melao coentro cebolinha macaxeira inhame abacate goiaba maracuja beterraba repolho couve chuchu jerimum abobora rucula espinafre kiwi pera tangerina',
   'Mercearia': 'arroz feijao cuscuz farinha acucar cafe oleo macarrao sal maizena fermento molho azeite aveia granola biscoito bolacha extrato milho ervilha atum sardinha tapioca leite-condensado achocolatado gelatina tempero vinagre ketchup maionese mostarda pipoca',
-  'Bebidas': 'agua refrigerante suco cerveja vinho cha energetico',
+  'Bebidas': 'agua refrigerante suco cerveja vinho cha energetico gelo',
   'Limpeza': 'detergente sabao amaciante desinfetante sanitaria esponja multiuso alvejante limpador vassoura rodo pano',
   'Higiene': 'higienico pasta sabonete shampoo xampu condicionador desodorante escova absorvente fio fralda cotonete',
   'Utilidades': 'amanteigado aluminio filme guardanapo saco sacos lixo pilha lampada fosforo vela',

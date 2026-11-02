@@ -14,6 +14,7 @@ import { montarLink, decodificarLista, codigoDoEndereco, codigoDeRetorno, montar
 import { criarLista, migrar, listaAtiva, nomeLivre, listasPorUso } from './core/listas.js';
 import { registroDaCompra, guardarCompra, totalDoMes, itensQueFaltaram } from './core/compras.js';
 import { montarBackup, lerBackup, nomeDoArquivo } from './core/backup.js';
+import { modelosPara, itensDoModelo } from './core/modelos.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from './core/retorno.js';
 import { registrar, doHistorico, sugerir, deSempre, gradeDaCategoria } from './core/historico.js';
 import {
@@ -94,7 +95,7 @@ function desenhar() {
   if (!itens.length) {
     quadro.innerHTML = editando
       ? '<p class="vazio">Escreva ou fale os itens na caixa acima.</p>'
-      : '<p class="vazio">Lista vazia. Toque em <b>Editar</b> para montar a lista ou em <b>Importar</b> para colar uma.</p>';
+      : '<div class="vazio"><p>Lista vazia. Monte do zero em <b>Editar</b>, cole uma em <b>Importar</b> ou comece por uma lista pronta.</p><button class="btn primario grande" id="vProntas" type="button">Começar com uma lista pronta</button></div>';
   }
   const grupos = editando
     ? categoriasEmUso(itens).map((cat) => [cat, itens.filter((i) => i.cat === cat)])
@@ -108,6 +109,7 @@ function desenhar() {
     sec.appendChild(ul);
     quadro.appendChild(sec);
   }
+  if ($('vProntas')) $('vProntas').onclick = () => { editando = true; desenhar(); painelModelos(); };
   desenharMontagem();
   atualizarContagem();
   $('bListas').innerHTML = `${iconeTipo(lista.tipo)}<span>${esc(lista.nome)}</span>${estado.listas.length > 1 ? `<span class="cinza">${estado.listas.length}</span>` : ''}<svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
@@ -286,7 +288,10 @@ function desenharMontagem() {
         : 'Prefere falar? Toque no microfone do teclado e diga, por exemplo: “dois quilos de frango, pão e seis leites”.'}</p>
     </form>
     ${sempre.length ? `<div class="atalho"><h2><span>Itens de sempre</span></h2><div class="chips">${sempre.map((h, n) => `<button class="chip" type="button" data-sempre="${n}">+ ${esc(h.nome)}${h.qtd != null ? ` <span class="cinza">${formatarNumero(h.qtd)} ${esc(h.un)}</span>` : ''}</button>`).join('')}</div></div>` : ''}
-    ${faltaNaLista > 0 ? `<button class="btn repetir" id="nRepetir" type="button">↻ Repetir a última compra <span class="cinza">(+${plural(faltaNaLista, 'item', 'itens')})</span></button>` : ''}
+    <div class="atalhos-linha">
+      <button class="btn ${itens.length ? '' : 'primario'}" id="nProntas" type="button">Listas prontas</button>
+      ${faltaNaLista > 0 ? `<button class="btn" id="nRepetir" type="button">Repetir a última <span class="cinza">(+${faltaNaLista})</span></button>` : ''}
+    </div>
     <div class="atalho grade-bloco">
       <h2><span>Escolher por categoria</span></h2>
       <div class="abas" role="tablist" aria-label="Categorias">${cats.map((c) => `<button type="button" role="tab" class="aba" aria-selected="${c === categoriaDaGrade}" data-aba="${esc(c)}">${esc(c)}</button>`).join('')}</div>
@@ -317,6 +322,7 @@ function desenharMontagem() {
       adicionar([criarItem(h.nome, h.cat, h.qtd, h.un)]);
     };
   });
+  $('nProntas').onclick = painelModelos;
   if ($('nRepetir')) {
     $('nRepetir').onclick = () => {
       marcarParaDesfazer();
@@ -776,6 +782,58 @@ async function lerCompartilhado() {
   if (!texto) return;
   history.replaceState(null, '', location.pathname);
   if (!(await receber(texto, 'texto'))) aviso('Não encontrei itens no que foi compartilhado');
+}
+
+// ---------------------------------------------------------------- listas prontas
+function painelModelos() {
+  const naLista = new Set(itens.map((i) => i.nome.toLowerCase()));
+  abrirPainel(`<h3>Listas prontas</h3>
+    <p>Escolha uma, desmarque o que não precisa e adicione tudo de uma vez em ${esc(lista.nome)}.</p>
+    <ul class="listas">${modelosPara(lista.tipo).map((m) => {
+      const total = itensDoModelo(m).length;
+      const faltam = itensDoModelo(m).filter((i) => !naLista.has(i.nome.toLowerCase())).length;
+      return `<li><button type="button" class="lista-linha" data-modelo="${m.id}">${iconeTipo(m.tipo)}<span class="nome">${esc(m.nome)}<small>${esc(m.descricao)} · ${faltam === total ? plural(total, 'item', 'itens') : `${faltam} de ${total} fora da lista`}</small></span></button></li>`;
+    }).join('')}</ul>
+    <button class="btn discreto" data-fechar type="button">Fechar</button>`);
+  painel.querySelectorAll('[data-modelo]').forEach((b) => {
+    b.onclick = () => painelModelo(modelosPara(lista.tipo).find((m) => m.id === b.dataset.modelo));
+  });
+}
+
+function painelModelo(m) {
+  const naLista = new Set(itens.map((i) => i.nome.toLowerCase()));
+  const todos = itensDoModelo(m);
+  const escolhidos = new Set(todos.filter((i) => !naLista.has(i.nome.toLowerCase())).map((i) => i.nome));
+  abrirPainel(`<h3>${esc(m.nome)}</h3>
+    <p>Toque para tirar ou pôr de volta. As quantidades você ajusta depois.</p>
+    <div class="chips modelo">${todos.map((i) => {
+      const ja = naLista.has(i.nome.toLowerCase());
+      return `<button type="button" class="chip escolha" data-nome="${esc(i.nome)}" aria-pressed="${escolhidos.has(i.nome)}" ${ja ? 'disabled' : ''}>${esc(i.nome)}${i.qtd != null ? ` <span class="cinza">${formatarQtd(i)}</span>` : ''}${ja ? ' <span class="cinza">já na lista</span>' : ''}</button>`;
+    }).join('')}</div>
+    <button class="btn primario grande" id="mAdicionar" type="button"></button>
+    <div class="fileira">
+      <button class="btn" id="mTodos" type="button">Marcar todos</button>
+      <button class="btn" id="mNenhum" type="button">Desmarcar todos</button>
+    </div>
+    <button class="btn discreto" id="mVoltar" type="button">Voltar</button>`);
+  const botoes = [...painel.querySelectorAll('.escolha:not([disabled])')];
+  const atualizar = () => {
+    botoes.forEach((b) => b.setAttribute('aria-pressed', String(escolhidos.has(b.dataset.nome))));
+    const n = escolhidos.size;
+    $('mAdicionar').textContent = n ? `Adicionar ${plural(n, 'item', 'itens')}` : 'Escolha pelo menos um item';
+    $('mAdicionar').disabled = !n;
+  };
+  botoes.forEach((b) => { b.onclick = () => { escolhidos.has(b.dataset.nome) ? escolhidos.delete(b.dataset.nome) : escolhidos.add(b.dataset.nome); atualizar(); }; });
+  $('mTodos').onclick = () => { botoes.forEach((b) => escolhidos.add(b.dataset.nome)); atualizar(); };
+  $('mNenhum').onclick = () => { escolhidos.clear(); atualizar(); };
+  $('mVoltar').onclick = painelModelos;
+  $('mAdicionar').onclick = () => {
+    const novos = paraItens(todos.filter((i) => escolhidos.has(i.nome)).map((i) => ({ nome: i.nome, cat: i.cat, qtd: i.qtd, un: i.un, unDita: i.qtd != null })));
+    fecharPainel();
+    editando = true;
+    adicionar(novos);
+  };
+  atualizar();
 }
 
 // ---------------------------------------------------------------- várias listas

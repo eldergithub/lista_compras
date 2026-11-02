@@ -144,7 +144,6 @@ textarea {
 .previa .qtd { background: var(--superficie); }
 .ja { font-size: .8rem; font-weight: 700; color: var(--destaque-forte); margin-left: 4px; }
 .atalho { margin-top: 18px; }
-.repetir { width: 100%; margin-top: 14px; }
 .campo { display: grid; gap: 6px; font-weight: 700; font-size: .9rem; color: var(--suave); }
 .campo .texto, .campo select { width: 100%; height: 46px; font-size: 16px; font-weight: 400; color: var(--texto); }
 .campo .fileira select { width: auto; flex: 1; }
@@ -242,3 +241,15 @@ li.faltou .caixa { border-style: dashed; }
 .grade-item.tem { border: 2px solid var(--destaque); background: var(--destaque-leve); }
 .grade-qtd { font-size: .8rem; font-weight: 700; color: var(--destaque-forte); font-variant-numeric: tabular-nums; }
 .grade-item:focus-visible, .aba:focus-visible, .btn.mic:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
+
+/* Listas prontas */
+.atalhos-linha { display: flex; gap: 8px; margin-top: 14px; }
+.atalhos-linha .btn { flex: 1; }
+.vazio { display: grid; gap: 14px; justify-items: center; }
+.vazio p { margin: 0; }
+.vazio .btn { max-width: 360px; }
+.chips.modelo { max-height: 46vh; overflow-y: auto; }
+.chip.escolha[aria-pressed="true"] { background: var(--destaque-leve); border: 2px solid var(--destaque); font-weight: 700; }
+.chip.escolha[aria-pressed="true"]::before { content: "✓ "; color: var(--destaque-forte); }
+.chip.escolha[disabled] { opacity: .6; cursor: default; }
+.btn:disabled { opacity: .55; cursor: default; }
