@@ -19,6 +19,7 @@ import { modelosPara, itensDoModelo } from './core/modelos.js';
 import { criarPronta, guardarPronta, existePronta, apagarPronta, renomearPronta, prontasPara, itensDaPronta, marcarUso } from './core/prontas.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from './core/retorno.js';
 import { sugestoesDeObs, alternarObs, temObs } from './core/observacoes.js';
+import { iniciarTour } from './tour.js';
 import { juntarOuvidos, textoDaSessao, limparFala, separarPendente } from './core/fala.js';
 import { registrar, doHistorico, sugerir, deSempre, gradeDaCategoria, esquecer, paraRevisar } from './core/historico.js';
 import {
@@ -131,14 +132,16 @@ function desenhar() {
   quadro.innerHTML = '';
   if (!itens.length) {
     quadro.innerHTML = '<div class="vazio"><p><b>A lista está vazia.</b><br>Escreva ou fale na barra aqui em cima, ou comece por uma lista pronta.</p><button class="btn primario grande" id="vProntas" type="button">Começar com uma lista pronta</button></div>';
-  } else if (!lerMarca(DICA_GESTOS)) {
+  }
+  if (!lerMarca(DICA_GESTOS)) {
     const d = document.createElement('div');
     d.className = 'dica-gestos';
-    d.innerHTML = `<b>Como usar a lista</b>
-      <ul><li>Escreva na barra de cima e toque no <b>+</b>, ou use o microfone para falar.</li><li>No menu de baixo ficam suas <b>listas</b>, as <b>compras</b> anteriores, <b>enviar</b>, <b>importar</b> e os <b>ajustes</b>.</li><li>Toque na <b>caixinha</b> para marcar.</li><li>Toque no <b>nome</b> para observação, preço e "não tinha".</li><li>Toque na <b>quantidade</b> para mudar.</li><li><b>Arraste</b> o item para o lado para tirar.</li></ul>
-      <button class="btn" id="dgOk" type="button">Entendi</button>`;
-    quadro.appendChild(d);
-    $('dgOk').onclick = () => { gravarMarca(DICA_GESTOS); d.remove(); };
+    d.innerHTML = `<b>Primeira vez por aqui?</b>
+      <p>Um tour rápido mostra o que cada parte do app faz: adicionar, falar, marcar, enviar para outra pessoa e mais.</p>
+      <div class="fileira"><button class="btn primario" id="dgTour" type="button">Fazer o tour</button><button class="btn" id="dgOk" type="button">Agora não</button></div>`;
+    quadro.prepend(d);
+    $('dgTour').onclick = () => comecarTour();
+    $('dgOk').onclick = () => { gravarMarca(DICA_GESTOS); d.remove(); aviso('O tour fica em Ajustes, quando quiser'); };
   }
   for (const [cat, doGrupo] of ordenarParaCompra(itens)) {
     const sec = document.createElement('section');
@@ -709,6 +712,39 @@ function painelDitado() {
   ligar();
 }
 
+// ---------------------------------------------------------------- tour
+/** O tour do app: um passo por parte da tela, na ordem em que a pessoa usa. */
+function comecarTour() {
+  fecharPainel();
+  // Fechar o painel mexe no histórico (assíncrono); o tour só começa depois, para o voltar não se confundir.
+  if (voltando) { setTimeout(comecarTour, 60); return; }
+  // O convite sai da frente: o tour começa já com a lista como ela é.
+  gravarMarca(DICA_GESTOS);
+  document.querySelector('.dica-gestos')?.remove();
+  window.scrollTo({ top: 0 });
+  const item = () => $('lista').querySelector('li.item:not(.feito)') || $('lista').querySelector('li.item');
+  const daLinha = (sel) => () => item()?.querySelector(sel) || null;
+  iniciarTour([
+    { titulo: 'Bem-vindo ao NaLista', texto: 'Em um minuto você vê como montar a lista, marcar no mercado e mandar para outra pessoa. Dá para pular quando quiser.' },
+    { alvo: () => $('tituloLista'), titulo: 'A lista aberta', texto: 'Este é o nome da lista em que você está. Dá para ter várias: mercado, farmácia, festa. Elas ficam em <b>Listas</b>, no menu de baixo.' },
+    { alvo: () => $('contagem'), titulo: 'Quanto falta', texto: 'Mostra quantos itens já estão no carrinho e quantos faltam. A barrinha verde vai enchendo durante a compra.' },
+    { alvo: () => $('nTexto'), titulo: 'Escreva vários de uma vez', texto: 'Separe por vírgula: <i>“2 kg frango, pão, 6 leite zero lactose”</i>. O app entende quantidade, unidade e observação, e põe cada item na categoria certa.' },
+    { alvo: () => $('nEnviar'), titulo: 'O botão +', texto: 'Põe na lista o que você escreveu. Com a caixa vazia, ele abre o teclado e mostra os itens que você sempre compra.' },
+    { alvo: () => $('nMic'), titulo: 'Falar em vez de digitar', texto: 'Fale a lista do seu jeito, com pausas para pensar. Cada item aparece na hora e você tira o que saiu errado antes de pôr na lista.' },
+    { alvo: () => $('nEscolher'), titulo: 'Escolher sem digitar', texto: 'Listas prontas (compra do mês, churrasco, farmácia…), as suas listas salvas e uma grade por categoria. Um toque põe, outro soma, o <b>−</b> tira.' },
+    { alvo: daLinha('.marcar-bt'), titulo: 'Marcar no mercado', texto: 'Toque na caixinha quando pegar o item. Ele desce para o fim da categoria e a tela fica acesa enquanto você compra.' },
+    { alvo: daLinha('.nome-bt'), titulo: 'Detalhes do item', texto: 'Toque no nome para pôr observação (marca, “maduras”, “zero lactose”), anotar o preço ou marcar que <b>não tinha</b>.' },
+    { alvo: daLinha('.qtd-bt'), titulo: 'Quantidade', texto: 'Toque aqui para aparecer o <b>−</b> e o <b>+</b> na própria linha.' },
+    { alvo: () => item()?.querySelector('.linha-item') || null, gesto: 'arrastar', titulo: 'Arrastar para tirar', texto: 'Arraste o item para o lado para tirar da lista. Se foi sem querer, toque em <b>Desfazer</b>.' },
+    { alvo: () => $('bListas'), titulo: 'Suas listas', texto: 'Crie, renomeie e troque de lista. O número mostra quantas você tem.' },
+    { alvo: () => $('bCompras'), titulo: 'Compras anteriores', texto: 'Cada compra terminada fica guardada: o que foi pego, o que faltou e quanto deu. Dá para repetir uma compra inteira.' },
+    { alvo: () => $('bEnviar'), titulo: 'Mandar para outra pessoa', texto: 'Manda a lista por WhatsApp como um link: quem recebe toca e ela abre pronta. Lembrou de mais coisas? Mande <b>só o que é novo</b>. Na volta, quem comprou manda o <b>retorno</b> com o que faltou.' },
+    { alvo: () => $('bImportar'), titulo: 'Importar', texto: 'Cole um link ou uma lista em texto que alguém mandou, de qualquer jeito: um item por linha ou separado por vírgula.' },
+    { alvo: () => $('bMais'), titulo: 'Ajustes', texto: 'Orçamento, listas prontas, começar nova compra, tema claro ou escuro, sugestões e backup. Este tour também fica aqui.' },
+    { titulo: 'Pronto!', texto: 'Funciona sem internet e tudo fica no seu celular. Para ver o tour de novo, vá em <b>Ajustes → Fazer o tour</b>.' },
+  ], { aoTerminar: () => { gravarMarca(DICA_GESTOS); desenhar(); } });
+}
+
 // ---------------------------------------------------------------- sugestões
 /**
  * O que o app aprendeu com as listas (histórico): aparece no "de sempre",
@@ -903,7 +939,7 @@ function painelMais() {
     <ul class="listas menu">
       ${opcao('mSugestoes', 'sugestoes', 'Sugestões', 'Tirar o que aparece sem fazer sentido')}
       ${opcao('mBackup', 'backup', 'Backup', 'Guardar tudo num arquivo ou levar para outro celular')}
-      ${opcao('mDica', 'ajuda', 'Como usar', 'Mostra de novo as dicas da lista')}
+      ${opcao('mDica', 'ajuda', 'Fazer o tour', 'Mostra o que cada parte do app faz')}
     </ul>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
   painel.querySelectorAll('input[name=tema]').forEach((r) => {
@@ -938,7 +974,7 @@ function painelMais() {
   }
   $('mBackup').onclick = painelBackup;
   $('mSugestoes').onclick = () => painelSugestoes();
-  $('mDica').onclick = () => { try { localStorage.removeItem(DICA_GESTOS); } catch { /* ok */ } fecharPainel(); desenhar(); window.scrollTo({ top: 0 }); };
+  $('mDica').onclick = () => comecarTour();
 }
 $('bMais').onclick = () => painelMais();
 $('bCompras').onclick = () => painelCompras();

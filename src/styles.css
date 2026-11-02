@@ -477,3 +477,42 @@ body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 @media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .selo-abas { color: #0e1a13; } }
 .aviso { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 .painel { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+
+/* Tour */
+.tour { position: fixed; inset: 0; z-index: 40; }
+.tour-fundo { position: absolute; inset: 0; }
+.tour-luz {
+  position: fixed; border-radius: 14px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(8, 12, 10, .72);
+  outline: 3px solid var(--destaque); outline-offset: 0; transition: left .25s, top .25s, width .25s, height .25s;
+}
+.tour.sem-alvo .tour-luz { outline: 0; }
+.tour-balao {
+  position: fixed; background: var(--superficie); color: var(--texto); border-radius: 18px; padding: 16px 16px 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .3); display: grid; gap: 8px; outline: none; transition: top .25s, left .25s;
+}
+.tour-balao::before {
+  content: ""; position: absolute; left: calc(var(--seta, 50%) - 9px); width: 18px; height: 18px; background: var(--superficie); transform: rotate(45deg); border-radius: 3px;
+}
+.tour-balao[data-lado="baixo"]::before { top: -8px; }
+.tour-balao[data-lado="cima"]::before { bottom: -8px; }
+.tour-balao[data-lado="meio"]::before { display: none; }
+.tour-topo { display: flex; justify-content: space-between; align-items: center; }
+.tour-passo { font-size: .8rem; font-weight: 700; color: var(--suave); font-variant-numeric: tabular-nums; }
+.tour-pular { font: inherit; font-size: .85rem; font-weight: 700; color: var(--suave); background: none; border: 0; padding: 6px 0; min-height: 36px; cursor: pointer; text-decoration: underline; }
+.tour-pular[hidden] { display: none; }
+.tour-titulo { font-family: var(--titulo); font-size: 1.2rem; margin: 0; }
+.tour-texto { margin: 0; color: var(--suave); line-height: 1.45; font-size: .95rem; }
+.tour-texto b, .tour-texto i { color: var(--texto); }
+.tour-pontos { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.tour-pontos span { width: 6px; height: 6px; border-radius: 50%; background: var(--linha); }
+.tour-pontos span.atual { background: var(--destaque); width: 16px; border-radius: 99px; }
+.tour-botoes { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+.tour-botoes .btn { min-height: 44px; padding: 8px 16px; }
+.tour-botoes .btn[hidden] { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  li.tour-gesto .linha-item { animation: tourArrastar 1.6s ease-in-out infinite; }
+  li.tour-gesto .fundo-remover { background: var(--perigo); color: #fff; }
+  @keyframes tourArrastar { 0%, 15% { transform: translateX(0); } 50%, 65% { transform: translateX(-38%); } 100% { transform: translateX(0); } }
+}
+.dica-gestos p { margin: 0; color: var(--suave); }
+.dica-gestos .fileira .btn { flex: 1; }
