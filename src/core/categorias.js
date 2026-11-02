@@ -1,14 +1,30 @@
 /**
  * Categorias, unidades e o palpite de categoria pelo nome do item.
  *
- * A ordem de CATEGORIAS é a ordem em que aparecem na tela. Hoje ela é fixa;
- * na fase 3 cada pessoa vai poder reordenar pelos corredores do seu mercado.
+ * CATEGORIAS só cresce no fim: a posição de cada uma vai dentro dos links
+ * já enviados (ver link.js), então reordenar quebraria links antigos.
+ * A ordem em que aparecem na tela é ORDEM_NA_TELA.
  */
 
 export const CATEGORIAS = [
   'Açougue', 'Padaria', 'Frios e laticínios', 'Hortifrúti',
   'Mercearia', 'Bebidas', 'Limpeza', 'Higiene', 'Utilidades', 'Outros',
+  'Farmácia', 'Material e ferramentas', 'Festa',
 ];
+
+export const ORDEM_NA_TELA = [
+  'Hortifrúti', 'Açougue', 'Padaria', 'Frios e laticínios', 'Mercearia', 'Bebidas',
+  'Limpeza', 'Higiene', 'Farmácia', 'Material e ferramentas', 'Festa', 'Utilidades', 'Outros',
+];
+
+/** Tipos de lista: dão cor, ícone e o nome sugerido. */
+export const TIPOS = {
+  mercado: { nome: 'Mercado' },
+  farmacia: { nome: 'Farmácia' },
+  casa: { nome: 'Casa' },
+  festa: { nome: 'Festa' },
+  outros: { nome: 'Outros' },
+};
 
 export const UNIDADES = ['un', 'kg', 'g', 'L', 'cx', 'pct', 'dz'];
 
@@ -26,6 +42,9 @@ const PALAVRAS = {
   'Limpeza': 'detergente sabao amaciante desinfetante sanitaria esponja multiuso alvejante limpador vassoura rodo pano',
   'Higiene': 'higienico pasta sabonete shampoo xampu condicionador desodorante escova absorvente fio fralda cotonete',
   'Utilidades': 'amanteigado aluminio filme guardanapo saco sacos lixo pilha lampada fosforo vela',
+  'Farmácia': 'remedio remedios dipirona paracetamol ibuprofeno amoxicilina omeprazol loratadina dorflex neosaldina buscopan vitamina soro curativo curativos esparadrapo gaze termometro xarope pomada colirio antialergico antiacido band-aid seringa',
+  'Material e ferramentas': 'parafuso parafusos prego pregos tinta pincel rolo fita cola cimento argamassa areia tijolo cano torneira tomada interruptor broca serra lixa chave martelo bucha veda-rosca',
+  'Festa': 'balao baloes bexiga bexigas confete serpentina chapeuzinho lembrancinha lembrancinhas presente embrulho docinho docinhos salgadinho salgadinhos forminha forminhas topo',
 };
 
 const INDICE = Object.fromEntries(

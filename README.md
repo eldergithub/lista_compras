@@ -15,6 +15,9 @@ Marca e design system: tokens, símbolo, ícones e componentes no design system 
 - Item repetido soma a quantidade; remover, apagar e importar têm **Desfazer**.
 - **Na hora da compra:** o que já foi pego desce para o fim e as categorias resolvidas vão para baixo. No botão **R$** de cada item: anotar quanto deu ou marcar **não tinha**. O total aparece no topo; toque nele para definir um **orçamento**. A tela não apaga enquanto houver itens para pegar. **Começar nova compra** zera marcas e preços.
 - **Retorno da compra:** quem comprou toca em **Enviar → Enviar retorno** (ou no botão do fim da compra). Quem montou abre o link e vê o que foi comprado, o que não tinha, o que ficou e o total, e pode **fazer a próxima lista com o que faltou**.
+- **Várias listas:** toque no nome da lista no topo para trocar, criar (Mercado, Farmácia, Casa, Festa ou Outros), renomear ou apagar. O link leva o nome e o tipo; quem recebe pode abrir como lista nova, juntar ou substituir.
+- **Compras anteriores:** cada compra concluída (e cada retorno recebido) fica registrada com o que foi pego, o que faltou e o total, com o gasto do mês. Dá para repetir uma compra ou pôr o que faltou na lista.
+- **Backup:** salva tudo num arquivo .json (compartilhável no celular) e restaura em outro aparelho.
 - **Enviar:** link com a lista dentro (WhatsApp, Telegram…), QR code ou texto.
 - **Importar:** cola um link, o texto do app ou uma lista simples. Com o app instalado no Android, dá para **compartilhar** uma mensagem direto com o app "NaLista".
 - **Instalar:** no Android, o Chrome oferece "Instalar". No iPhone, Safari → Compartilhar → Adicionar à Tela de Início.

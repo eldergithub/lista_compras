@@ -5,29 +5,53 @@ import '@fontsource/atkinson-hyperlegible/latin-700.css';
 import '@fontsource/bricolage-grotesque/latin-600.css';
 import '@fontsource/bricolage-grotesque/latin-800.css';
 import './styles.css';
-import { CATEGORIAS, UNIDADES, PASSO } from './core/categorias.js';
+import { CATEGORIAS, UNIDADES, PASSO, TIPOS } from './core/categorias.js';
 import {
   criarItem, formatarNumero, formatarQtd, categoriasEmUso, juntar, adicionarItens, LISTA_INICIAL,
 } from './core/lista.js';
 import { paraTexto, lerTexto, lerEntrada, separarItens, lerPedaco } from './core/texto.js';
-import { montarLink, decodificar, codigoDoEndereco, codigoDeRetorno, montarLinkDeRetorno } from './core/link.js';
+import { montarLink, decodificarLista, codigoDoEndereco, codigoDeRetorno, montarLinkDeRetorno } from './core/link.js';
+import { criarLista, migrar, listaAtiva, nomeLivre, listasPorUso } from './core/listas.js';
+import { registroDaCompra, guardarCompra, totalDoMes, itensQueFaltaram } from './core/compras.js';
+import { montarBackup, lerBackup, nomeDoArquivo } from './core/backup.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from './core/retorno.js';
 import { registrar, doHistorico, sugerir, deSempre } from './core/historico.js';
 import {
   ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra, resolvido,
 } from './core/compra.js';
 import {
-  carregar, salvar, carregarHistorico, salvarHistorico, carregarUltima, salvarUltima,
-  carregarOrcamento, salvarOrcamento,
+  carregar, carregarHistorico, salvarHistorico, carregarUltima,
+  carregarOrcamento, salvarOrcamento, carregarListas, salvarListas, carregarCompras, salvarCompras,
+  lerTudo, gravarTudo,
 } from './storage.js';
 
 // ---------------------------------------------------------------- estado
-let itens = carregar() || LISTA_INICIAL;
+// Várias listas: `lista` é a que está aberta e `itens` são os itens dela.
+// Quem tinha a versão de uma lista só ganha a lista "Mercado" com os mesmos itens.
+const guardadoAntes = carregarListas();
+let estado = migrar(guardadoAntes, carregar(), LISTA_INICIAL);
+if (!guardadoAntes && carregarUltima()) estado.listas[0].ultima = carregarUltima();
+let lista = listaAtiva(estado);
+let itens = lista.itens;
 let historico = carregarHistorico();
-let ultima = carregarUltima();
+let compras = carregarCompras();
 let editando = false;
 let orcamento = carregarOrcamento();
-const guardar = () => salvar(itens);
+function guardar() {
+  lista.itens = itens;
+  lista.atualizada = Date.now();
+  salvarListas(estado);
+}
+salvarListas(estado);
+
+const ICONES_TIPO = {
+  mercado: '<path d="M3 9h18l-1.6 9.2a2 2 0 0 1-2 1.8H6.6a2 2 0 0 1-2-1.8L3 9z"/><path d="M8 9l3-5M16 9l-3-5"/><path d="M9 13v3M12 13v3M15 13v3"/>',
+  farmacia: '<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M12 10.5v6M9 13.5h6"/>',
+  casa: '<path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>',
+  festa: '<rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M3 9h18M12 9v11"/><path d="M12 9c-1.5-3.5-5-4-5-1.5S10 9 12 9zM12 9c1.5-3.5 5-4 5-1.5S14 9 12 9z"/>',
+  outros: '<path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5"/><path d="M8.5 13l2 2 4-4"/>',
+};
+const iconeTipo = (tipo) => `<svg class="icone-tipo tipo-${tipo}" viewBox="0 0 24 24" aria-hidden="true">${ICONES_TIPO[tipo] || ICONES_TIPO.outros}</svg>`;
 const copiaDe = (lista) => lista.map((i) => ({ ...i }));
 
 const $ = (id) => document.getElementById(id);
@@ -52,7 +76,8 @@ function aviso(msg, podeDesfazer = false) {
   if (podeDesfazer) {
     $('aDesfazer').onclick = () => {
       if (!antesDeDesfazer) return;
-      itens = antesDeDesfazer; antesDeDesfazer = null;
+      if (antesDeDesfazer.lista !== lista.id) trocarPara(antesDeDesfazer.lista, false);
+      itens = antesDeDesfazer.itens; antesDeDesfazer = null;
       guardar(); desenhar(); aviso('Desfeito');
     };
   }
@@ -60,14 +85,14 @@ function aviso(msg, podeDesfazer = false) {
   aviso.t = setTimeout(() => t.classList.remove('mostrar', 'com-acao'), podeDesfazer ? 5000 : 2000);
 }
 /** Guarda a lista antes de uma mudança, para o "Desfazer" do aviso. */
-const marcarParaDesfazer = () => { antesDeDesfazer = copiaDe(itens); };
+const marcarParaDesfazer = () => { antesDeDesfazer = { lista: lista.id, itens: copiaDe(itens) }; };
 
 // ---------------------------------------------------------------- lista
 function desenhar() {
-  const lista = $('lista');
-  lista.innerHTML = '';
+  const quadro = $('lista');
+  quadro.innerHTML = '';
   if (!itens.length) {
-    lista.innerHTML = editando
+    quadro.innerHTML = editando
       ? '<p class="vazio">Escreva ou fale os itens na caixa acima.</p>'
       : '<p class="vazio">Lista vazia. Toque em <b>Editar</b> para montar a lista ou em <b>Importar</b> para colar uma.</p>';
   }
@@ -81,10 +106,12 @@ function desenhar() {
     const ul = document.createElement('ul');
     for (const item of doGrupo) ul.appendChild(editando ? linhaEdicao(item) : linhaCompra(item));
     sec.appendChild(ul);
-    lista.appendChild(sec);
+    quadro.appendChild(sec);
   }
   desenharMontagem();
   atualizarContagem();
+  $('bListas').innerHTML = `${iconeTipo(lista.tipo)}<span>${esc(lista.nome)}</span>${estado.listas.length > 1 ? `<span class="cinza">${estado.listas.length}</span>` : ''}<svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
+  document.title = `${lista.nome} · NaLista`;
   $('bEditar').textContent = editando ? 'Pronto' : 'Editar';
   $('bEditar').classList.toggle('primario', editando);
   rearmarLimpar();
@@ -218,6 +245,7 @@ function adicionar(novos) {
   marcarParaDesfazer();
   const r = adicionarItens(itens, novos);
   itens = r.itens;
+  lista.compraRegistrada = false;
   lembrar(novos);
   guardar(); desenhar();
   const novosDeVerdade = novos.length - r.somados.length;
@@ -231,7 +259,7 @@ function desenharMontagem() {
   const caixa = $('adicionar');
   if (!editando) { caixa.innerHTML = ''; return; }
   const sempre = deSempre(historico, itens);
-  const faltaNaLista = ultima ? juntar(itens, ultima).length - itens.length : 0;
+  const faltaNaLista = lista.ultima ? juntar(itens, lista.ultima).length - itens.length : 0;
   caixa.innerHTML = `
     <form class="novo" id="fNovo" autocomplete="off">
       <div class="entrada">
@@ -264,7 +292,7 @@ function desenharMontagem() {
     $('nRepetir').onclick = () => {
       marcarParaDesfazer();
       const antes = itens.length;
-      itens = juntar(itens, novaCompra(ultima));
+      itens = juntar(itens, novaCompra(lista.ultima));
       guardar(); desenhar();
       aviso(`${plural(itens.length - antes, 'item voltou', 'itens voltaram')} da última compra`, true);
     };
@@ -369,7 +397,14 @@ function atualizarContagem() {
     tudo.innerHTML = `Tá tudo na sacola. Boa compra<span>${partes.join(' · ')}</span><button class="btn primario grande" id="tRetorno" type="button">Enviar retorno para quem fez a lista</button>`;
     $('tRetorno').onclick = enviarRetorno;
     // Compra concluída vira a "última compra", que dá para repetir depois.
-    ultima = novaCompra(itens); salvarUltima(ultima);
+    lista.ultima = novaCompra(itens);
+    // Entra uma vez só nas compras anteriores, até a próxima compra começar.
+    if (!lista.compraRegistrada) {
+      compras = guardarCompra(compras, registroDaCompra(lista, itens));
+      salvarCompras(compras);
+      lista.compraRegistrada = true;
+    }
+    guardar();
   }
 }
 
@@ -409,10 +444,12 @@ bLimpar.onclick = () => {
   }
   marcarParaDesfazer();
   if (editando) {
-    ultima = novaCompra(itens); salvarUltima(ultima);
+    lista.ultima = novaCompra(itens);
     itens = [];
+    lista.compraRegistrada = false;
   } else {
     itens = novaCompra(itens);
+    lista.compraRegistrada = false;
   }
   guardar(); desenhar();
   aviso(editando ? 'Lista apagada' : 'Marcas e preços zerados', true);
@@ -453,14 +490,14 @@ async function compartilhar(dados, reserva) {
  * num link #r= para quem montou a lista (ver core/retorno.js).
  */
 async function enviarRetorno() {
-  const link = montarLinkDeRetorno(await codificarRetorno(itens), location.href);
+  const link = montarLinkDeRetorno(await codificarRetorno(itens, Date.now(), lista.nome), location.href);
   compartilhar({ title: 'NaLista', text: '🧾 Retorno da compra — toque para ver o que faltou:', url: link }, link);
 }
 
 $('bEnviar').onclick = async () => {
   if (!itens.length) { aviso('A lista está vazia'); return; }
-  const link = await montarLink(novaCompra(itens), location.href);
-  const texto = paraTexto(itens);
+  const link = await montarLink(novaCompra(itens), location.href, { nome: lista.nome, tipo: lista.tipo });
+  const texto = paraTexto(itens, lista.nome);
   // Quem já está comprando quer devolver o resultado; quem montou quer mandar a lista.
   const comprando = itens.some(resolvido);
   const r = resumoDaCompra(itens);
@@ -496,26 +533,44 @@ $('bEnviar').onclick = async () => {
 };
 
 // ---------------------------------------------------------------- receber
-function painelRecebida(novos, origem) {
+function painelRecebida(novos, origem, meta) {
   const n = novos.length;
   const nomes = novos.slice(0, 8).map((i) => esc(i.nome) + (i.qtd != null ? ` <span class="cinza">${formatarQtd(i)}</span>` : '')).join(', ');
   const resto = n > 8 ? ` e mais ${n - 8}` : '';
+  const tipo = meta?.tipo in TIPOS ? meta.tipo : 'outros';
+  const nomeNovo = meta?.nome || 'Lista recebida';
+  const atualVazia = !itens.length;
   abrirPainel(`<h3>${origem === 'link' ? 'Chegou uma lista para você' : 'Lista encontrada'}</h3>
+    ${meta ? `<p class="tag-lista">${iconeTipo(tipo)}<b>${esc(meta.nome)}</b></p>` : ''}
     <p><b>${plural(n, 'item', 'itens')}:</b> ${nomes}${resto}.</p>
-    ${itens.length ? `<p>Sua lista atual tem ${plural(itens.length, 'item', 'itens')}. Juntar mantém os dois, sem repetir.</p>` : ''}
+    ${atualVazia
+      ? `<button class="btn primario grande" id="rAqui" type="button">Usar esta lista</button>`
+      : `<button class="btn primario grande" id="rNova" type="button">Abrir como lista nova</button>
     <div class="fileira">
-      <button class="btn primario" id="rTrocar" type="button">${itens.length ? 'Substituir' : 'Usar esta lista'}</button>
-      ${itens.length ? '<button class="btn" id="rJuntar" type="button">Juntar</button>' : ''}
-    </div>
+      <button class="btn" id="rJuntar" type="button">Juntar à ${esc(lista.nome)}</button>
+      <button class="btn" id="rTrocar" type="button">Substituir ${esc(lista.nome)}</button>
+    </div>`}
     <button class="btn discreto" data-fechar type="button">Agora não</button>`);
-  const aplicar = (trocar) => {
-    marcarParaDesfazer();
-    itens = trocar ? novos : juntar(itens, novos);
-    editando = false; guardar(); fecharPainel(); desenhar();
-    aviso(trocar ? 'Lista recebida' : 'Listas juntadas', true);
+  const terminar = (msg, podeDesfazer = true) => { editando = false; guardar(); fecharPainel(); desenhar(); aviso(msg, podeDesfazer); };
+  if ($('rAqui')) {
+    $('rAqui').onclick = () => {
+      marcarParaDesfazer();
+      itens = novos; lista.compraRegistrada = false;
+      if (meta) { lista.nome = nomeLivre({ listas: estado.listas.filter((l) => l !== lista) }, meta.nome); lista.tipo = tipo; }
+      terminar('Lista recebida');
+    };
+    return;
+  }
+  $('rNova').onclick = () => {
+    const nova = criarLista(nomeLivre(estado, nomeNovo), tipo, novos);
+    estado.listas.push(nova);
+    trocarPara(nova.id, false);
+    // Lista nova não mexe em nenhuma outra: nada para desfazer.
+    antesDeDesfazer = null;
+    terminar(`Lista ${nova.nome} criada`, false);
   };
-  $('rTrocar').onclick = () => aplicar(true);
-  if ($('rJuntar')) $('rJuntar').onclick = () => aplicar(false);
+  $('rJuntar').onclick = () => { marcarParaDesfazer(); itens = juntar(itens, novos); lista.compraRegistrada = false; terminar('Listas juntadas'); };
+  $('rTrocar').onclick = () => { marcarParaDesfazer(); itens = novos; lista.compraRegistrada = false; terminar('Lista substituída'); };
 }
 
 /** O retorno de uma compra chegou: mostra o resultado e oferece montar a próxima lista com o que faltou. */
@@ -532,9 +587,18 @@ function painelRetorno(r) {
     ${itens.length ? '<button class="btn" id="vJuntar" type="button">Juntar o que faltou à minha lista</button>' : ''}
     <button class="btn discreto" data-fechar type="button">Só ver</button>`
     : '<button class="btn primario grande" data-fechar type="button">Ok</button>'}`);
-  // A compra que voltou vira a "última compra" de quem montou, para repetir depois.
-  ultima = novaCompra([...r.pegos, ...r.faltaram, ...r.naoComprados]);
-  salvarUltima(ultima);
+  // O retorno vale para a lista de mesmo nome, se houver; senão, para a aberta.
+  const daLista = r.lista && estado.listas.find((l) => l.nome.toLowerCase() === r.lista.toLowerCase());
+  if (daLista && daLista !== lista) trocarPara(daLista.id, false);
+  // A compra que voltou vira a "última compra" dessa lista e entra nas compras anteriores.
+  const todos = [...r.pegos.map((i) => ({ ...i, feito: true })), ...r.faltaram.map((i) => ({ ...i, faltou: true })), ...r.naoComprados];
+  lista.ultima = novaCompra(todos);
+  if (!compras.some((c) => c.origem === 'retorno' && c.data === r.data && c.lista === (r.lista || lista.nome))) {
+    compras = guardarCompra(compras, registroDaCompra({ nome: r.lista || lista.nome, tipo: lista.tipo }, todos, r.data || Date.now(), 'retorno'));
+    salvarCompras(compras);
+  }
+  guardar();
+  desenhar();
   if ($('vNova')) {
     $('vNova').onclick = () => {
       marcarParaDesfazer();
@@ -561,9 +625,9 @@ async function receber(texto, origem) {
     const retorno = codigoDeRetorno(texto);
     if (retorno) { painelRetorno(await decodificarRetorno(retorno)); return true; }
     const codigo = codigoDoEndereco(texto);
-    const novos = codigo ? await decodificar(codigo) : lerTexto(texto);
+    const { itens: novos, meta } = codigo ? await decodificarLista(codigo) : { itens: lerTexto(texto), meta: null };
     if (!novos.length) return false;
-    painelRecebida(novos, codigo ? 'link' : origem);
+    painelRecebida(novos, codigo ? 'link' : origem, meta);
     return true;
   } catch {
     return false;
@@ -601,6 +665,168 @@ async function lerCompartilhado() {
   if (!texto) return;
   history.replaceState(null, '', location.pathname);
   if (!(await receber(texto, 'texto'))) aviso('Não encontrei itens no que foi compartilhado');
+}
+
+// ---------------------------------------------------------------- várias listas
+/** Abre outra lista. `redesenhar` = false quando quem chama ainda vai mexer e desenhar. */
+function trocarPara(id, redesenhar = true) {
+  guardar();
+  estado.ativa = id;
+  lista = listaAtiva(estado);
+  itens = lista.itens;
+  salvarListas(estado);
+  if (redesenhar) { editando = !itens.length; desenhar(); window.scrollTo({ top: 0 }); }
+}
+
+const resumoDaLista = (l) => {
+  const pendentes = l.itens.filter((i) => !resolvido(i)).length;
+  if (!l.itens.length) return 'vazia';
+  return pendentes === l.itens.length ? plural(l.itens.length, 'item', 'itens') : `${pendentes} de ${l.itens.length} para pegar`;
+};
+
+const escolhaDeTipo = (atual) => `<div class="tipos" role="radiogroup" aria-label="Tipo de lista">${Object.entries(TIPOS).map(([id, t]) =>
+  `<label class="tipo"><input type="radio" name="tipo" value="${id}" ${id === atual ? 'checked' : ''}>${iconeTipo(id)}<span>${t.nome}</span></label>`).join('')}</div>`;
+
+function painelListas() {
+  abrirPainel(`<h3>Suas listas</h3>
+    <ul class="listas">${listasPorUso(estado).map((l) => `<li><button type="button" class="lista-linha${l.id === lista.id ? ' atual' : ''}" data-lista="${l.id}">${iconeTipo(l.tipo)}<span class="nome">${esc(l.nome)}<small>${resumoDaLista(l)}</small></span>${l.id === lista.id ? '<span class="aberta">aberta</span>' : ''}</button></li>`).join('')}</ul>
+    <button class="btn primario grande" id="lNova" type="button">+ Nova lista</button>
+    <div class="fileira">
+      <button class="btn" id="lEditar" type="button">Renomear ${esc(lista.nome)}</button>
+      ${estado.listas.length > 1 ? '<button class="btn perigo" id="lApagar" type="button">Apagar</button>' : ''}
+    </div>
+    <div class="fileira">
+      <button class="btn" id="lCompras" type="button">Compras anteriores</button>
+      <button class="btn" id="lBackup" type="button">Backup</button>
+    </div>
+    <button class="btn discreto" data-fechar type="button">Fechar</button>`);
+  painel.querySelectorAll('[data-lista]').forEach((b) => {
+    b.onclick = () => { fecharPainel(); if (b.dataset.lista !== lista.id) trocarPara(b.dataset.lista); };
+  });
+  $('lNova').onclick = () => painelDaLista(null);
+  $('lEditar').onclick = () => painelDaLista(lista);
+  $('lCompras').onclick = painelCompras;
+  $('lBackup').onclick = painelBackup;
+  const apagar = $('lApagar');
+  if (apagar) {
+    apagar.onclick = () => {
+      if (!apagar.classList.contains('armado')) { apagar.classList.add('armado'); apagar.textContent = 'Toque de novo'; return; }
+      const nome = lista.nome;
+      estado.listas = estado.listas.filter((l) => l !== lista);
+      estado.ativa = listasPorUso(estado)[0].id;
+      lista = listaAtiva(estado); itens = lista.itens;
+      salvarListas(estado); fecharPainel(); editando = false; desenhar();
+      aviso(`Lista ${nome} apagada`);
+    };
+  }
+}
+
+/** Criar (lista = null) ou renomear/mudar o tipo de uma lista. */
+function painelDaLista(alvo) {
+  const tipoInicial = alvo ? alvo.tipo : 'mercado';
+  abrirPainel(`<h3>${alvo ? 'Renomear a lista' : 'Nova lista'}</h3>
+    ${escolhaDeTipo(tipoInicial)}
+    <label class="campo">Nome<input class="texto" id="nlNome" value="${alvo ? esc(alvo.nome) : ''}" placeholder="${TIPOS[tipoInicial].nome}" autocomplete="off" maxlength="60"></label>
+    ${alvo ? '' : `<label class="marcar"><input type="checkbox" id="nlSempre" ${deSempre(historico, []).length ? 'checked' : ''}> Começar com os itens de sempre deste tipo</label>`}
+    <button class="btn primario grande" id="nlSalvar" type="button">${alvo ? 'Salvar' : 'Criar lista'}</button>
+    <button class="btn discreto" data-fechar type="button">Cancelar</button>`);
+  const nome = $('nlNome');
+  const tipoEscolhido = () => painel.querySelector('input[name=tipo]:checked')?.value || 'outros';
+  painel.querySelectorAll('input[name=tipo]').forEach((r) => { r.onchange = () => { nome.placeholder = TIPOS[tipoEscolhido()].nome; }; });
+  $('nlSalvar').onclick = () => {
+    const tipo = tipoEscolhido();
+    const texto = nome.value.trim() || TIPOS[tipo].nome;
+    if (alvo) {
+      alvo.nome = alvo.nome.toLowerCase() === texto.toLowerCase() ? texto : nomeLivre({ listas: estado.listas.filter((l) => l !== alvo) }, texto);
+      alvo.tipo = tipo;
+      guardar(); fecharPainel(); desenhar();
+      return;
+    }
+    // Itens de sempre que já apareceram em listas deste tipo.
+    const doTipo = new Set(estado.listas.filter((l) => l.tipo === tipo).flatMap((l) => [...l.itens, ...(l.ultima || [])].map((i) => i.nome.toLowerCase())));
+    const iniciais = $('nlSempre')?.checked
+      ? deSempre(historico, []).filter((h) => doTipo.has(h.nome.toLowerCase())).map((h) => criarItem(h.nome, h.cat, h.qtd, h.un))
+      : [];
+    const nova = criarLista(nomeLivre(estado, texto), tipo, iniciais);
+    estado.listas.push(nova);
+    fecharPainel();
+    trocarPara(nova.id, false);
+    editando = true; desenhar(); window.scrollTo({ top: 0 });
+    aviso(iniciais.length ? `${nova.nome} criada com ${plural(iniciais.length, 'item de sempre', 'itens de sempre')}` : `${nova.nome} criada`);
+  };
+}
+
+$('bListas').onclick = painelListas;
+
+// ---------------------------------------------------------------- compras anteriores
+const dataCurta = (ms) => new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
+
+function painelCompras() {
+  const mes = totalDoMes(compras);
+  abrirPainel(`<h3>Compras anteriores</h3>
+    ${compras.length ? `<p>Este mês: <b>${plural(mes.compras, 'compra', 'compras')}</b>${mes.gasto ? `, <b>${formatarPreco(mes.gasto)}</b> anotados` : ''}.</p>
+    <ul class="listas">${compras.slice(0, 30).map((c, n) => `<li><button type="button" class="lista-linha" data-compra="${n}">${iconeTipo(c.tipo)}<span class="nome">${esc(c.lista)} <span class="cinza">· ${dataCurta(c.data)}</span><small>${plural(c.pegos.length, 'pego', 'pegos')}${c.faltaram.length ? ` · ${c.faltaram.length} não tinha` : ''}${c.naoComprados.length ? ` · ${c.naoComprados.length} ficou` : ''}${c.origem === 'retorno' ? ' · retorno' : ''}</small></span>${c.gasto ? `<span class="valor">${formatarPreco(c.gasto)}</span>` : ''}</button></li>`).join('')}</ul>`
+    : '<p>Quando uma compra termina (tudo marcado ou com "não tinha"), ela aparece aqui com o que foi pego, o que faltou e quanto deu. Retornos que você recebe também entram.</p>'}
+    <button class="btn discreto" data-fechar type="button">Fechar</button>`);
+  painel.querySelectorAll('[data-compra]').forEach((b) => { b.onclick = () => painelUmaCompra(compras[Number(b.dataset.compra)]); });
+}
+
+function painelUmaCompra(c) {
+  const faltando = itensQueFaltaram(c);
+  const lista_ = (nomes) => nomes.slice(0, 12).map(esc).join(', ') + (nomes.length > 12 ? ` e mais ${nomes.length - 12}` : '');
+  abrirPainel(`<h3>${esc(c.lista)} · ${dataCurta(c.data)}</h3>
+    <p><b>${plural(c.pegos.length, 'item pego', 'itens pegos')}</b>${c.gasto ? `, total de <b>${formatarPreco(c.gasto)}</b>` : ''}${c.pegos.length ? `: ${lista_(c.pegos)}` : ''}.</p>
+    ${c.faltaram.length ? `<p><b>Não tinha:</b> ${lista_(c.faltaram)}.</p>` : ''}
+    ${c.naoComprados.length ? `<p><b>Ficou sem comprar:</b> ${lista_(c.naoComprados)}.</p>` : ''}
+    ${faltando.length ? `<button class="btn primario grande" id="cFaltou" type="button">Pôr o que faltou em ${esc(lista.nome)}</button>` : ''}
+    <button class="btn" id="cRepetir" type="button">Repetir esta compra em ${esc(lista.nome)}</button>
+    <button class="btn discreto" id="cVoltar" type="button">Voltar</button>`);
+  const aplicar = (novos, msg) => {
+    marcarParaDesfazer();
+    itens = juntar(itens, novos); lista.compraRegistrada = false;
+    guardar(); fecharPainel(); editando = false; desenhar(); aviso(msg, true);
+  };
+  if ($('cFaltou')) $('cFaltou').onclick = () => aplicar(faltando, `${plural(faltando.length, 'item entrou', 'itens entraram')} na lista`);
+  $('cRepetir').onclick = () => aplicar(c.itens.map((i) => ({ ...i })), 'Compra repetida na lista');
+  $('cVoltar').onclick = painelCompras;
+}
+
+// ---------------------------------------------------------------- backup
+function painelBackup() {
+  const n = estado.listas.length;
+  abrirPainel(`<h3>Backup</h3>
+    <p>As listas ficam só neste aparelho. O backup salva tudo num arquivo (${plural(n, 'lista', 'listas')}, ${plural(compras.length, 'compra anterior', 'compras anteriores')} e o que você costuma comprar) para guardar ou levar para outro celular.</p>
+    <button class="btn primario grande" id="bkSalvar" type="button">Salvar backup</button>
+    <label class="btn arquivo">Restaurar de um arquivo<input type="file" id="bkArquivo" accept="application/json,.json"></label>
+    <button class="btn discreto" data-fechar type="button">Fechar</button>`);
+  $('bkSalvar').onclick = async () => {
+    guardar();
+    const conteudo = JSON.stringify(montarBackup(lerTudo()), null, 1);
+    const nome = nomeDoArquivo();
+    const arquivo = new File([conteudo], nome, { type: 'application/json' });
+    // No celular, compartilhar o arquivo deixa salvar no Drive ou mandar para si mesmo.
+    if (navigator.canShare?.({ files: [arquivo] })) {
+      try { await navigator.share({ files: [arquivo], title: 'Backup do NaLista' }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    const url = URL.createObjectURL(arquivo);
+    const a = document.createElement('a');
+    a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    aviso('Backup salvo');
+  };
+  $('bkArquivo').onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    let dados;
+    try { dados = lerBackup(await f.text()); } catch (erro) { aviso(erro.message); return; }
+    const quando = new Date(dados.exportadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+    abrirPainel(`<h3>Restaurar este backup?</h3>
+      <p>Backup de <b>${esc(quando)}</b>, com ${plural(dados.listas.listas.length, 'lista', 'listas')} e ${plural((dados.compras || []).length, 'compra anterior', 'compras anteriores')}.</p>
+      <p>Tudo o que está neste aparelho agora será trocado pelo que está no backup.</p>
+      <button class="btn primario grande" id="bkConfirmar" type="button">Restaurar</button>
+      <button class="btn discreto" data-fechar type="button">Cancelar</button>`);
+    $('bkConfirmar').onclick = () => { gravarTudo(dados); location.reload(); };
+  };
 }
 
 // ---------------------------------------------------------------- instalar e atualizar

@@ -6,7 +6,7 @@
  * servidor. A lista passa de um celular para o outro sem ninguém no meio.
  *
  * Formato antes de comprimir (curto, para o link caber no WhatsApp):
- *   [1, [[nome, cat, qtd, un?, obs?], ...]]
+ *   [1, [[nome, cat, qtd, un?, obs?], ...], nomeDaLista?, tipo?]
  *   cat é o número da categoria conhecida, ou o próprio texto.
  *   qtd é 0 quando não foi definida; un é omitida quando é "un" e não há obs.
  *
@@ -38,14 +38,23 @@ async function passarPor(bytes, transformacao) {
   return new Uint8Array(await new Response(fluxo).arrayBuffer());
 }
 
-function compactar(itens) {
-  return [VERSAO, itens.map((i) => {
+function compactar(itens, meta) {
+  const dados = [VERSAO, itens.map((i) => {
     const c = CATEGORIAS.indexOf(i.cat);
     const linha = [i.nome, c >= 0 ? c : i.cat, i.qtd ?? 0];
     if (i.un !== 'un' || i.obs) linha.push(i.un);
     if (i.obs) linha.push(i.obs);
     return linha;
   })];
+  if (meta && meta.nome) dados.push(String(meta.nome).slice(0, 60), meta.tipo || 'outros');
+  return dados;
+}
+
+/** Nome e tipo da lista, quando o link traz (links antigos não trazem). */
+function metaDe(dados) {
+  return typeof dados[2] === 'string' && dados[2].trim()
+    ? { nome: dados[2].trim().slice(0, 60), tipo: typeof dados[3] === 'string' ? dados[3] : 'outros' }
+    : null;
 }
 
 function descompactar(dados) {
@@ -66,9 +75,14 @@ function descompactar(dados) {
     });
 }
 
-export const codificar = (itens) => codificarDados(compactar(itens));
+export const codificar = (itens, meta) => codificarDados(compactar(itens, meta));
 export async function decodificar(codigo) {
   return descompactar(await decodificarDados(codigo));
+}
+/** A lista com nome e tipo: { itens, meta: { nome, tipo } | null }. */
+export async function decodificarLista(codigo) {
+  const dados = await decodificarDados(codigo);
+  return { itens: descompactar(dados), meta: metaDe(dados) };
 }
 
 /** Qualquer dado em JSON → código curto para o link (usado pela lista e pelo retorno). */
@@ -94,9 +108,9 @@ export async function decodificarDados(codigo) {
 }
 
 /** Endereço do app + a lista: funciona na raiz e em subpasta do Pages. */
-export async function montarLink(itens, endereco) {
+export async function montarLink(itens, endereco, meta) {
   const base = endereco.split('#')[0].split('?')[0];
-  return `${base}#l=${await codificar(itens)}`;
+  return `${base}#l=${await codificar(itens, meta)}`;
 }
 
 /** O código que está no `#l=` do endereço, ou null. */

@@ -5,7 +5,7 @@
  *   qtd = null quando ninguém definiu a quantidade.
  */
 
-import { CATEGORIAS } from './categorias.js';
+import { CATEGORIAS, ORDEM_NA_TELA } from './categorias.js';
 
 export function novoId() {
   return Math.random().toString(36).slice(2, 9);
@@ -27,8 +27,8 @@ export function formatarQtd(item) {
 /** Categorias com itens, na ordem fixa; as criadas pela pessoa vêm no fim. */
 export function categoriasEmUso(itens) {
   const usadas = new Set(itens.map((i) => i.cat));
-  const extras = [...usadas].filter((c) => !CATEGORIAS.includes(c));
-  return [...CATEGORIAS.filter((c) => usadas.has(c)), ...extras];
+  const extras = [...usadas].filter((c) => !ORDEM_NA_TELA.includes(c));
+  return [...ORDEM_NA_TELA.filter((c) => usadas.has(c)), ...extras];
 }
 
 const mesmoNome = (a, b) => a.nome.toLowerCase() === b.nome.toLowerCase();

@@ -3,7 +3,7 @@
  * o que pegou, o que não tinha, o que ficou sem comprar e o total.
  *
  * Vai no link como `#r=<código>`, no mesmo esquema da lista:
- *   [1, data (ms), [[nome, cat, qtd, un, situação, preço], ...]]
+ *   [1, data (ms), [[nome, cat, qtd, un, situação, preço], ...], nomeDaLista?]
  *   situação: "p" pego, "f" não tinha, "n" não comprou;
  *   cat é o número da categoria conhecida ou o texto; preço 0 = sem preço.
  */
@@ -16,18 +16,18 @@ import { codificarDados, decodificarDados } from './link.js';
 const VERSAO = 1;
 const situacao = (i) => (i.feito ? 'p' : i.faltou ? 'f' : 'n');
 
-export function codificarRetorno(itens, data = Date.now()) {
+export function codificarRetorno(itens, data = Date.now(), nomeDaLista = '') {
   return codificarDados([VERSAO, data, itens.map((i) => {
     const c = CATEGORIAS.indexOf(i.cat);
     return [i.nome, c >= 0 ? c : i.cat, i.qtd ?? 0, i.un, situacao(i), typeof i.preco === 'number' ? i.preco : 0];
-  })]);
+  }), String(nomeDaLista).slice(0, 60)]);
 }
 
-/** Devolve { data, pegos, faltaram, naoComprados, gasto } com itens comuns. */
+/** Devolve { data, lista, pegos, faltaram, naoComprados, gasto } com itens comuns. */
 export async function decodificarRetorno(codigo) {
   const dados = await decodificarDados(codigo);
   if (!Array.isArray(dados) || dados[0] !== VERSAO || !Array.isArray(dados[2])) throw new Error('Retorno inválido');
-  const r = { data: Number(dados[1]) || null, pegos: [], faltaram: [], naoComprados: [], gasto: 0 };
+  const r = { data: Number(dados[1]) || null, lista: typeof dados[3] === 'string' ? dados[3] : '', pegos: [], faltaram: [], naoComprados: [], gasto: 0 };
   for (const l of dados[2]) {
     if (!Array.isArray(l) || typeof l[0] !== 'string' || !l[0].trim()) continue;
     const [nome, c, qtd, un, sit, preco] = l;

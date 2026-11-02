@@ -19,8 +19,8 @@ import { procurarNoCatalogo } from './catalogo.js';
 
 // ---------------------------------------------------------------- saída
 
-export function paraTexto(itens) {
-  const linhas = ['🛒 *NaLista*', ''];
+export function paraTexto(itens, nomeDaLista) {
+  const linhas = [nomeDaLista ? `🛒 *${nomeDaLista}* · NaLista` : '🛒 *NaLista*', ''];
   for (const cat of categoriasEmUso(itens)) {
     linhas.push(`*${cat}*`);
     for (const i of itens.filter((x) => x.cat === cat)) {

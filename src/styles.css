@@ -181,3 +181,42 @@ li.faltou .caixa { border-style: dashed; }
 /* Fase 5: retorno */
 .painel .sub { margin: 8px 0 0; font-family: var(--titulo); font-size: .82rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--suave); }
 .tudo .btn { margin-top: 12px; }
+
+/* Fase 6: várias listas */
+:root { --tipo-mercado: #2f7d4f; --tipo-farmacia: #2e6ab0; --tipo-casa: #a8521a; --tipo-festa: #7a4fb0; --tipo-outros: #56605a; }
+@media (prefers-color-scheme: dark) { :root { --tipo-mercado: #5cc488; --tipo-farmacia: #7faee8; --tipo-casa: #f0a866; --tipo-festa: #b79be6; --tipo-outros: #a3afa8; } }
+.topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.marca { font-size: 1.6rem; }
+.icone-tipo { flex: none; width: 22px; height: 22px; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tipo-mercado { stroke: var(--tipo-mercado); } .tipo-farmacia { stroke: var(--tipo-farmacia); } .tipo-casa { stroke: var(--tipo-casa); }
+.tipo-festa { stroke: var(--tipo-festa); } .tipo-outros { stroke: var(--tipo-outros); }
+.lista-atual {
+  display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 60%; min-height: 44px; padding: 0 10px 0 12px;
+  border-radius: 99px; border: 1px solid var(--linha-forte); background: var(--superficie); color: var(--texto);
+  font: inherit; font-weight: 700; font-size: .95rem; cursor: pointer;
+}
+.lista-atual > span:not(.cinza) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lista-atual .cinza { font-weight: 400; font-size: .85rem; }
+.lista-atual .seta { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--suave); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.lista-atual:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
+.listas { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; background: var(--superficie); border: 1px solid var(--linha); border-radius: 14px; overflow: hidden; }
+.lista-linha {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 56px; border: 0; background: transparent;
+  color: var(--texto); font: inherit; text-align: left; cursor: pointer;
+}
+.lista-linha .nome small { display: block; color: var(--suave); font-size: .85rem; }
+.lista-linha.atual { background: var(--destaque-leve); }
+.lista-linha .aberta { font-size: .8rem; font-weight: 700; color: var(--destaque-forte); }
+.lista-linha .valor { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tipos { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.tipo { display: grid; justify-items: center; gap: 4px; padding: 10px 2px; border-radius: 12px; border: 1px solid var(--linha-forte); background: var(--superficie); font-size: .8rem; font-weight: 700; cursor: pointer; }
+.tipo input { position: absolute; opacity: 0; pointer-events: none; }
+.tipo:has(input:checked) { border: 2px solid var(--destaque); background: var(--destaque-leve); }
+.tipo:has(input:focus-visible) { outline: 3px solid var(--destaque); outline-offset: 2px; }
+.tag-lista { display: flex; align-items: center; gap: 8px; }
+.tag-lista b { color: var(--texto); }
+.marcar { display: flex; align-items: center; gap: 10px; font-size: .95rem; color: var(--texto); min-height: 44px; }
+.marcar input { width: 22px; height: 22px; accent-color: var(--destaque); }
+.btn.armado { color: #fff; background: var(--perigo); border-color: var(--perigo); }
+.btn.arquivo { display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+.btn.arquivo input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }

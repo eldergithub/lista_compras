@@ -17,6 +17,9 @@ const BRUTO = {
   'Bebidas': 'Água/L Água mineral/L Água com gás Refrigerante/L Suco/L Suco em pó/pct Polpa de fruta/pct Cerveja Vinho Energético Água de coco/L Café solúvel Isotônico',
   'Limpeza': 'Detergente Sabão em pó/cx Sabão líquido/L Sabão em barra/pct Amaciante/L Água sanitária/L Desinfetante/L Multiuso Álcool/L Álcool em gel Limpa vidro Lustra móveis Esponja/pct Palha de aço/pct Pano de chão Pano de prato Flanela Saco de lixo/pct Vassoura Rodo Luva Inseticida Tira manchas Pedra sanitária',
   'Higiene': 'Papel higiênico/pct Sabonete Sabonete líquido Shampoo Condicionador Creme de cabelo Pasta de dente Escova de dente Fio dental Enxaguante bucal Desodorante Absorvente/pct Fralda/pct Lenço umedecido/pct Cotonete/cx Algodão/pct Aparelho de barbear Creme de barbear Protetor solar Hidratante Papel toalha/pct Lenço de papel/cx',
+  'Farmácia': 'Dipirona/cx Paracetamol/cx Ibuprofeno/cx Dorflex/cx Neosaldina/cx Buscopan/cx Omeprazol/cx Loratadina/cx Antiácido Vitamina C Vitamina D Soro fisiológico Curativo/cx Esparadrapo Gaze/pct Termômetro Xarope Pomada Colírio Repelente Teste de gravidez Seringa/pct',
+  'Material e ferramentas': 'Parafuso/pct Prego/pct Bucha/pct Fita isolante Fita crepe Fita dupla face Cola Silicone Veda-rosca Tinta/L Pincel Rolo de pintura Lixa Lâmpada LED Tomada Interruptor Extensão Benjamim Cano Torneira Cimento/kg Argamassa/kg Broca',
+  'Festa': 'Balão/pct Vela de aniversário Confete/pct Serpentina Chapeuzinho/pct Lembrancinha Papel de presente Fita de cetim Forminha/pct Topo de bolo Docinho Salgadinho Guardanapo de festa/pct',
   'Utilidades': 'Papel alumínio Papel filme Papel manteiga Papel amanteigado Guardanapo/pct Copo descartável/pct Prato descartável/pct Pilha/pct Lâmpada Fósforo/cx Vela/pct Saco plástico/pct Carvão/pct Gás',
 };
 
