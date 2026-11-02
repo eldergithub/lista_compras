@@ -135,7 +135,7 @@ function desenhar() {
     const d = document.createElement('div');
     d.className = 'dica-gestos';
     d.innerHTML = `<b>Como usar a lista</b>
-      <ul><li>Escreva na barra de cima e toque no <b>+</b>, ou use o microfone para falar.</li><li>Toque na <b>caixinha</b> para marcar.</li><li>Toque no <b>nome</b> para observação, preço e mais.</li><li>Toque na <b>quantidade</b> para mudar.</li><li><b>Arraste</b> o item para o lado para tirar.</li></ul>
+      <ul><li>Escreva na barra de cima e toque no <b>+</b>, ou use o microfone para falar.</li><li>No menu de baixo ficam suas <b>listas</b>, as <b>compras</b> anteriores, <b>enviar</b>, <b>importar</b> e os <b>ajustes</b>.</li><li>Toque na <b>caixinha</b> para marcar.</li><li>Toque no <b>nome</b> para observação, preço e "não tinha".</li><li>Toque na <b>quantidade</b> para mudar.</li><li><b>Arraste</b> o item para o lado para tirar.</li></ul>
       <button class="btn" id="dgOk" type="button">Entendi</button>`;
     quadro.appendChild(d);
     $('dgOk').onclick = () => { gravarMarca(DICA_GESTOS); d.remove(); };
@@ -150,7 +150,9 @@ function desenhar() {
   }
   if ($('vProntas')) $('vProntas').onclick = painelModelos;
   atualizarContagem();
-  $('bListas').innerHTML = `${iconeTipo(lista.tipo)}<span>${esc(lista.nome)}</span>${estado.listas.length > 1 ? `<span class="cinza">${estado.listas.length}</span>` : ''}<svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
+  $('tituloLista').innerHTML = `${iconeTipo(lista.tipo)}<span>${esc(lista.nome)}</span>`;
+  $('nListas').hidden = estado.listas.length < 2;
+  $('nListas').textContent = estado.listas.length;
   document.title = `${lista.nome} · NaLista`;
   rearmarLimpar();
   manterTelaAcesa();
@@ -759,7 +761,8 @@ function atualizarContagem() {
 
   // Total e orçamento: aparecem quando a compra começa (ou já há preço ou orçamento).
   const gasto = $('gasto');
-  gasto.hidden = !r.total || !(r.resolvidos || r.comPreco || orcamento);
+  // Só aparece quando há preço anotado ou orçamento: a dica de como anotar fica em "Como usar".
+  gasto.hidden = !r.total || !(r.comPreco || orcamento);
   const passou = orcamento && r.gasto > orcamento;
   gasto.classList.toggle('passou', !!passou);
   gasto.innerHTML = r.comPreco || orcamento
@@ -882,20 +885,15 @@ function painelMais() {
   const faltaNaLista = lista.ultima ? juntar(itens, lista.ultima).length - itens.length : 0;
   const opcao = (id, ic, titulo, desc, extra = '') => `<li><button type="button" class="opcao${extra}" id="${id}">${icone(ic)}<span class="nome">${titulo}<small>${desc}</small></span><svg class="seta-op" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>`;
   const tema = lerTema();
-  abrirPainel(`<h3>Menu</h3>
+  abrirPainel(`<h3>Ajustes</h3>
     <h4 class="sub">Lista ${esc(lista.nome)}</h4>
     <ul class="listas menu">
       ${opcao('mOrcamento', 'orcamento', 'Orçamento', orcamento ? `Até ${formatarPreco(orcamento)}` : 'Avisa quando o total passar do valor')}
+      ${opcao('mProntas', 'prontas', 'Listas prontas', prontas.length ? `${plural(prontas.length, 'sua', 'suas')} e as do app` : 'Mês, feira, churrasco, farmácia e outras')}
       ${itens.length ? opcao('mSalvarPronta', 'pronta', 'Salvar como lista pronta', 'Para montar uma igual depois') : ''}
       ${faltaNaLista > 0 ? opcao('mRepetir', 'repetir', 'Repetir a última compra', `${plural(faltaNaLista, 'item volta', 'itens voltam')} para a lista`) : ''}
       ${itens.some(resolvido) ? opcao('mZerar', 'zerar', 'Começar nova compra', 'Tira as marcas e os preços, mantém os itens') : ''}
       ${itens.length ? opcao('mEsvaziar', 'esvaziar', 'Esvaziar a lista', `Tira os ${plural(itens.length, 'item', 'itens')}`, ' perigo') : ''}
-    </ul>
-    <h4 class="sub">Trazer itens</h4>
-    <ul class="listas menu">
-      ${opcao('mImportar', 'importar', 'Importar', 'Colar um link ou texto que você recebeu')}
-      ${opcao('mProntas', 'prontas', 'Listas prontas', prontas.length ? `${plural(prontas.length, 'sua', 'suas')} e as do app` : 'Mês, feira, churrasco, farmácia e outras')}
-      ${opcao('mCompras', 'compras', 'Compras anteriores', compras.length ? `${plural(compras.length, 'compra', 'compras')} · repetir ou ver o que faltou` : 'O que foi pego, o que faltou e quanto deu')}
     </ul>
     <h4 class="sub">App</h4>
     <span class="rotulo-tema" id="rotuloTema">Tema</span>
@@ -914,7 +912,6 @@ function painelMais() {
       aplicarTema(r.value);
     };
   });
-  $('mImportar').onclick = () => painelImportar();
   $('mProntas').onclick = painelModelos;
   if ($('mSalvarPronta')) $('mSalvarPronta').onclick = () => painelSalvarPronta();
   if ($('mRepetir')) $('mRepetir').onclick = () => {
@@ -939,12 +936,13 @@ function painelMais() {
       },
     });
   }
-  $('mCompras').onclick = painelCompras;
   $('mBackup').onclick = painelBackup;
   $('mSugestoes').onclick = () => painelSugestoes();
   $('mDica').onclick = () => { try { localStorage.removeItem(DICA_GESTOS); } catch { /* ok */ } fecharPainel(); desenhar(); window.scrollTo({ top: 0 }); };
 }
-$('bMais').onclick = painelMais;
+$('bMais').onclick = () => painelMais();
+$('bCompras').onclick = () => painelCompras();
+$('bImportar').onclick = () => painelImportar();
 
 // ---------------------------------------------------------------- painel
 const fundo = $('fundo'), painel = $('painel');
@@ -1639,7 +1637,7 @@ function painelDaLista(alvo) {
   };
 }
 
-$('bListas').onclick = painelListas;
+$('bListas').onclick = () => painelListas();
 
 // ---------------------------------------------------------------- compras anteriores
 const dataCurta = (ms) => new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');

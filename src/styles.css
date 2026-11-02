@@ -444,3 +444,36 @@ li.item, .dica-gestos { scroll-margin-top: calc(var(--altura-topo, 200px) + 12px
 header { grid-template-columns: minmax(0, 1fr); }
 .barra-add, .entrada { min-width: 0; }
 .entrada .texto { width: 100%; }
+
+/* Topo: o nome da lista em destaque; o resto do app mora no menu de baixo */
+.topo { display: flex; align-items: center; gap: 12px; }
+.topo .logo { flex: none; border-radius: 10px; }
+.titulo { flex: 1; min-width: 0; display: grid; line-height: 1.1; }
+.marca-pequena { font-family: var(--titulo); font-weight: 800; font-size: .8rem; letter-spacing: .02em; color: var(--suave); }
+.marca-pequena .na { color: var(--destaque); font-weight: 600; }
+#tituloLista { display: flex; align-items: center; gap: 8px; font-size: 1.5rem; min-width: 0; }
+#tituloLista span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tituloLista .icone-tipo { width: 24px; height: 24px; }
+.topo #contagem { flex: none; text-align: right; color: var(--suave); font-size: .9rem; max-width: 42%; }
+
+/* Menu de baixo */
+body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+.abas-baixo {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--superficie); border-top: 1px solid var(--linha);
+  padding: 4px max(4px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(4px, env(safe-area-inset-left, 0px));
+}
+.aba-baixo {
+  position: relative; display: grid; justify-items: center; align-content: center; gap: 3px; min-height: 60px; padding: 6px 2px;
+  border: 0; background: transparent; color: var(--suave); font: inherit; font-size: .75rem; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.aba-baixo svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.aba-baixo:active { color: var(--destaque-forte); }
+.aba-baixo:active svg { transform: scale(.92); }
+.aba-baixo:focus-visible { outline: 3px solid var(--destaque); outline-offset: -4px; border-radius: 12px; }
+.selo-abas { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--destaque); color: #fff; font-size: .7rem; line-height: 18px; text-align: center; }
+.selo-abas[hidden] { display: none; }
+:root[data-tema="escuro"] .selo-abas { color: #0e1a13; }
+@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .selo-abas { color: #0e1a13; } }
+.aviso { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+.painel { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }

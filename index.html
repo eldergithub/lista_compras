@@ -32,15 +32,12 @@
   <div class="app">
     <header>
       <div class="topo">
-        <h1 class="marca"><img src="/icons/icon.svg" alt="" width="28" height="28"><span><span class="na">Na</span>Lista</span></h1>
-        <button class="lista-atual" id="bListas" type="button" aria-label="Trocar de lista"></button>
-      </div>
-      <div class="meta">
-        <span id="contagem"></span>
-        <div class="icones">
-          <button class="icone-bt" id="bEnviar" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 15V3M7.5 7.5L12 3l4.5 4.5"/></svg><span>Enviar</span></button>
-          <button class="icone-bt so-icone" id="bMais" type="button" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+        <img class="logo" src="/icons/icon.svg" alt="NaLista" width="34" height="34">
+        <div class="titulo">
+          <span class="marca-pequena"><span class="na">Na</span>Lista</span>
+          <h1 id="tituloLista">Lista</h1>
         </div>
+        <span id="contagem"></span>
       </div>
       <div class="barra"><span id="barra"></span></div>
       <button class="gasto" id="gasto" type="button" hidden></button>
@@ -62,6 +59,13 @@
     <div class="tudo" id="tudo"></div>
     <button class="limpar" id="limpar" type="button"></button>
   </div>
+  <nav class="abas-baixo" aria-label="Menu principal">
+    <button class="aba-baixo" id="bListas" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1.2"/><circle cx="4" cy="12" r="1.2"/><circle cx="4" cy="18" r="1.2"/></svg><span>Listas</span><b class="selo-abas" id="nListas" hidden></b></button>
+    <button class="aba-baixo" id="bCompras" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Compras</span></button>
+    <button class="aba-baixo" id="bEnviar" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 15V3M7.5 7.5L12 3l4.5 4.5"/></svg><span>Enviar</span></button>
+    <button class="aba-baixo" id="bImportar" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 10.5L12 15l4.5-4.5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg><span>Importar</span></button>
+    <button class="aba-baixo" id="bMais" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span>Ajustes</span></button>
+  </nav>
   <div class="fundo" id="fundo"><div class="painel" id="painel" role="dialog" aria-modal="true"></div></div>
   <div class="aviso" id="aviso" role="status"></div>
   <script type="module" src="/src/main.js"></script>
