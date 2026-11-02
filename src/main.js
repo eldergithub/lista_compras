@@ -722,9 +722,12 @@ function painelFoto() {
     <p>Funciona com lista escrita à mão ou impressa.${android ? ' O Google Lens lê a foto e manda o texto para cá.' : ' O próprio iPhone lê o texto da foto.'}</p>
     <ol class="passos">
       ${android
-        ? `<li>Abra o <b>Google Lens</b> (ou a câmera) e aponte para a lista.</li>
-      <li>Toque em <b>Texto</b> e em <b>Selecionar tudo</b>.</li>
-      <li>Toque em <b>Compartilhar</b> e escolha <b>NaLista</b>. Se ele não aparecer, toque em <b>Copiar</b> e volte aqui.</li>`
+        ? `<li>Abra o <b>Google Lens</b>, aponte para a lista e toque na <b>lupa</b> para tirar a foto.</li>
+      <li>Toque em cima de uma palavra da lista (ou em <b>Selecionar texto</b>) e depois em <b>Selecionar tudo</b>.</li>
+      <li>Toque em <b>Compartilhar</b> e escolha <b>NaLista</b>. Se ele não aparecer, toque em <b>Copiar</b> e volte aqui.</li>
+    </ol>
+    <p class="obs">No Samsung também dá pela <b>Galeria</b>: abra a foto e toque no <b>T</b> amarelo, de extrair texto.</p>
+    <ol class="passos" start="4">`
         : `<li>Abra a <b>Câmera</b> e aponte para a lista.</li>
       <li>Toque no ícone de <b>texto</b> no canto da foto e em <b>Selecionar tudo</b>.</li>
       <li>Toque em <b>Copiar</b> e volte aqui.</li>`}
