@@ -10,6 +10,10 @@ import { procurarNoCatalogo, sugerirDoCatalogo } from '../src/core/catalogo.js';
 import { registrar, sugerir, deSempre, gradeDaCategoria } from '../src/core/historico.js';
 import { CATEGORIAS_POR_TIPO, TIPOS } from '../src/core/categorias.js';
 import { MODELOS, modelosPara, itensDoModelo } from '../src/core/modelos.js';
+import { complementar, novosDesdeOEnvio, marcarComoEnviados, textoDoComplemento, listaDoTextoDeComplemento } from '../src/core/complemento.js';
+import { listaDoComplemento, ligar, listaEmCompra } from '../src/core/listas.js';
+import { codigoDeComplemento, montarLinkDeComplemento } from '../src/core/link.js';
+import { guardarOuAtualizar } from '../src/core/compras.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from '../src/core/retorno.js';
 import { codigoDeRetorno, montarLinkDeRetorno, decodificarLista } from '../src/core/link.js';
 import { criarLista, migrar, nomeLivre, listaAtiva } from '../src/core/listas.js';
@@ -234,6 +238,63 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   ok(modelosPara('farmacia')[0].id === 'farmacia', 'listas prontas do tipo vêm primeiro');
   const ovos = itensDoModelo(MODELOS[0]).find((i) => i.nome === 'Ovos');
   ok(ovos.qtd === 1 && ovos.un === 'dz', 'quantidade da lista pronta');
+}
+
+// Complemento
+{
+  const naRua = [
+    { ...criarItem('Pão', 'Padaria'), feito: true, preco: 8 },
+    { ...criarItem('Leite', 'Frios e laticínios', 2, 'cx'), feito: true },
+    { ...criarItem('Gorgonzola', 'Frios e laticínios'), faltou: true },
+    criarItem('Ovos', 'Frios e laticínios', 1, 'dz'),
+    criarItem('Café', 'Mercearia'),
+  ];
+  const chegou = [criarItem('Pilha', 'Utilidades', 4), criarItem('leite', 'Frios e laticínios', 4, 'cx'), criarItem('Gorgonzola', 'Frios e laticínios'), criarItem('Ovos', 'Frios e laticínios', 2, 'dz'), criarItem('Café', 'Mercearia')];
+  const r = complementar(naRua, chegou);
+  const por = (n) => r.itens.find((i) => i.nome.toLowerCase() === n.toLowerCase());
+  ok(igual(r.novos, ['Pilha']) && por('Pilha').novo && !por('Pilha').feito, 'item novo entra pendente com selo');
+  ok(por('Leite').qtd === 6 && !por('Leite').feito && por('Leite').obs === 'pediram mais' && por('Leite').novo, 'item já pego volta somando e com "pediram mais"');
+  ok(!por('Gorgonzola').faltou && por('Gorgonzola').novo, '"não tinha" pedido de novo volta a pendente');
+  ok(por('Ovos').qtd === 2 && r.atualizados.includes('Ovos'), 'pendente só atualiza a quantidade');
+  ok(!por('Café').novo && por('Pão').feito && por('Pão').preco === 8, 'o resto não muda');
+  ok(r.reabertos.length === 2 && r.itens.length === 6, 'contagem do complemento');
+  ok(ordenarParaCompra(r.itens).find(([c]) => c === 'Frios e laticínios')[1][0].novo, 'novos em cima na hora da compra');
+  const inteira = complementar(naRua, chegou, { reabrir: false });
+  const porI = (n) => inteira.itens.find((i) => i.nome.toLowerCase() === n.toLowerCase());
+  ok(porI('Leite').feito && porI('Gorgonzola').faltou && porI('Pilha').novo && porI('Ovos').qtd === 2, 'lista inteira de novo não reabre o que já foi resolvido');
+
+  const l = { itens: [criarItem('Pão', 'Padaria')] };
+  ok(novosDesdeOEnvio(l).length === 0, 'nunca enviada: nada é "novo"');
+  marcarComoEnviados(l);
+  l.itens.push(criarItem('Pilha', 'Utilidades'));
+  ok(igual(novosDesdeOEnvio(l).map((i) => i.nome), ['Pilha']), 'novo desde o último envio');
+  l.itens[0].qtd = 3; ok(igual(novosDesdeOEnvio(l).map((i) => i.nome), ['Pão', 'Pilha']), 'quantidade mudada também conta como novo');
+
+  const a = criarLista('Mercado', 'mercado'), bl = criarLista('Farmácia', 'farmacia');
+  const est = { v: 2, listas: [a, bl], ativa: a.id };
+  ok(listaDoComplemento(est, { uid: bl.uid, nome: 'Outra' }) === bl, 'complemento acha a lista pela identidade');
+  ok(listaDoComplemento(est, { uid: 'x', nome: 'mercado' }) === a, 'sem identidade conhecida, acha pelo nome');
+  ok(listaDoComplemento(est, { uid: 'x', nome: 'Festa' }) === null, 'sem lista certa, a pessoa escolhe');
+  const m2 = criarLista('Mercado 2', 'mercado', [{ ...criarItem('Pão', 'Padaria'), feito: true }]); est.listas.push(m2);
+  ok(listaDoComplemento(est, { nome: 'Mercado' }) === m2, 'pelo nome, prefere a cópia numerada que está em compra');
+  est.listas.pop();
+  ligar(a, 'de-fora');
+  ok(listaDoComplemento(est, { uid: 'de-fora' }) === a, 'lista recebida fica ligada à de origem');
+  a.itens = [{ ...criarItem('Pão', 'Padaria'), feito: true }];
+  ok(listaEmCompra(est) === a, 'sugere a lista que está em compra');
+
+  const link = await montarLinkDeComplemento([criarItem('Pilha', 'Utilidades', 4)], 'https://eldergithub.github.io/lista_compras/', { nome: 'Mercado', tipo: 'mercado', uid: a.uid });
+  const cod = codigoDeComplemento(new URL(link).hash);
+  ok(cod && codigoDoEndereco(new URL(link).hash) === null, 'link de complemento é próprio');
+  const lc = await decodificarLista(cod);
+  ok(lc.meta.uid === a.uid && lc.meta.nome === 'Mercado' && lc.itens[0].qtd === 4, 'complemento leva identidade, nome e itens');
+  const t = textoDoComplemento([criarItem('Pilha', 'Utilidades', 4)], 'Mercado', formatarQtd);
+  ok(listaDoTextoDeComplemento(t) === 'Mercado' && lerTexto(t).length === 1 && lerTexto(t)[0].nome === 'Pilha', 'texto de complemento: lista e itens');
+
+  const reg1 = { id: 'r1', listaId: 'L', origem: 'compra', data: 1000 };
+  const reg2 = { id: 'r2', listaId: 'L', origem: 'compra', data: 1000 + 3600e3 };
+  ok(guardarOuAtualizar([reg1], reg2).length === 1 && guardarOuAtualizar([reg1], reg2)[0].id === 'r1', 'compra reaberta atualiza o registro');
+  ok(guardarOuAtualizar([reg1], { ...reg2, data: 1000 + 13 * 3600e3 }).length === 2, 'outro dia é outra compra');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);

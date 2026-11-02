@@ -6,7 +6,8 @@
  * servidor. A lista passa de um celular para o outro sem ninguém no meio.
  *
  * Formato antes de comprimir (curto, para o link caber no WhatsApp):
- *   [1, [[nome, cat, qtd, un?, obs?], ...], nomeDaLista?, tipo?]
+ *   [1, [[nome, cat, qtd, un?, obs?], ...], nomeDaLista?, tipo?, uid?]
+ *   uid liga as cópias da mesma lista em celulares diferentes (ver complemento.js).
  *   cat é o número da categoria conhecida, ou o próprio texto.
  *   qtd é 0 quando não foi definida; un é omitida quando é "un" e não há obs.
  *
@@ -46,14 +47,14 @@ function compactar(itens, meta) {
     if (i.obs) linha.push(i.obs);
     return linha;
   })];
-  if (meta && meta.nome) dados.push(String(meta.nome).slice(0, 60), meta.tipo || 'outros');
+  if (meta && meta.nome) dados.push(String(meta.nome).slice(0, 60), meta.tipo || 'outros', meta.uid ? String(meta.uid).slice(0, 40) : '');
   return dados;
 }
 
 /** Nome e tipo da lista, quando o link traz (links antigos não trazem). */
 function metaDe(dados) {
   return typeof dados[2] === 'string' && dados[2].trim()
-    ? { nome: dados[2].trim().slice(0, 60), tipo: typeof dados[3] === 'string' ? dados[3] : 'outros' }
+    ? { nome: dados[2].trim().slice(0, 60), tipo: typeof dados[3] === 'string' ? dados[3] : 'outros', uid: typeof dados[4] === 'string' && dados[4] ? dados[4] : null }
     : null;
 }
 
@@ -108,9 +109,18 @@ export async function decodificarDados(codigo) {
 }
 
 /** Endereço do app + a lista: funciona na raiz e em subpasta do Pages. */
-export async function montarLink(itens, endereco, meta) {
+export async function montarLink(itens, endereco, meta, marcador = 'l') {
   const base = endereco.split('#')[0].split('?')[0];
-  return `${base}#l=${await codificar(itens, meta)}`;
+  return `${base}#${marcador}=${await codificar(itens, meta)}`;
+}
+
+/** Link de complemento: o mesmo código da lista, em `#c=`. */
+export const montarLinkDeComplemento = (itens, endereco, meta) => montarLink(itens, endereco, meta, 'c');
+
+/** O código de um complemento (`#c=`), ou null. */
+export function codigoDeComplemento(hash) {
+  const m = String(hash).match(/[#&]c=([A-Za-z0-9_-]+)/);
+  return m ? m[1] : null;
 }
 
 /** O código que está no `#l=` do endereço, ou null. */

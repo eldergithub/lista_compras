@@ -175,7 +175,7 @@ export function lerTexto(texto) {
   for (const bruta of String(texto).split(/\r?\n/)) {
     const s = bruta.trim();
     // Cabeçalhos do texto do app e do retorno (🛒, 🧾, ✅, ❌, ⏳, 💰) não são itens.
-    if (!s || /^(🛒|🧾|✅|❌|⏳|💰)/u.test(s) || /^\*?(nalista|lista d[eo] (compras|mercado))\*?$/i.test(s)) continue;
+    if (!s || /^(🛒|🧾|✅|❌|⏳|💰|➕)/u.test(s) || /^\*?(nalista|lista d[eo] (compras|mercado))\*?$/i.test(s)) continue;
     const cabecalho = s.match(/^\*([^*]+)\*$/) || s.match(/^([^\-•\d*][^:]*):$/);
     if (cabecalho) { cat = categoriaCanonica(cabecalho[1]); continue; }
     // Linha do app ("- Nome — 2 kg (obs)") é um item só; o resto pode ter vários.

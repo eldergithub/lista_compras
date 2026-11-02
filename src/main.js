@@ -10,9 +10,10 @@ import {
   criarItem, formatarNumero, formatarQtd, categoriasEmUso, juntar, adicionarItens, LISTA_INICIAL,
 } from './core/lista.js';
 import { paraTexto, lerTexto, lerEntrada, separarItens, lerPedaco } from './core/texto.js';
-import { montarLink, decodificarLista, codigoDoEndereco, codigoDeRetorno, montarLinkDeRetorno } from './core/link.js';
-import { criarLista, migrar, listaAtiva, nomeLivre, listasPorUso } from './core/listas.js';
-import { registroDaCompra, guardarCompra, totalDoMes, itensQueFaltaram } from './core/compras.js';
+import { montarLink, montarLinkDeComplemento, decodificarLista, codigoDoEndereco, codigoDeRetorno, codigoDeComplemento, montarLinkDeRetorno } from './core/link.js';
+import { complementar, novosDesdeOEnvio, marcarComoEnviados, textoDoComplemento, listaDoTextoDeComplemento } from './core/complemento.js';
+import { criarLista, migrar, listaAtiva, nomeLivre, listasPorUso, listaDoComplemento, ligar, listaEmCompra } from './core/listas.js';
+import { registroDaCompra, guardarCompra, guardarOuAtualizar, totalDoMes, itensQueFaltaram } from './core/compras.js';
 import { montarBackup, lerBackup, nomeDoArquivo } from './core/backup.js';
 import { modelosPara, itensDoModelo } from './core/modelos.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from './core/retorno.js';
@@ -127,10 +128,10 @@ function linhaCompra(item) {
   const q = formatarQtd(item);
   const preco = typeof item.preco === 'number' ? formatarPreco(item.preco) : '';
   if (item.faltou && !item.feito) li.className = 'faltou';
-  li.innerHTML = `<div class="linha-compra"><label class="linha"><input type="checkbox" ${item.feito ? 'checked' : ''}><span class="caixa">${MARCA}</span><span class="nome">${textoNome(item)}</span>${q ? `<span class="qtd">${q}</span>` : ''}${li.className ? '<span class="tag-faltou">não tinha</span>' : ''}</label><button class="preco-bt${preco ? ' tem' : ''}" type="button" aria-label="Preço ou não tinha: ${esc(item.nome)}">${preco || 'R$'}</button></div>`;
+  li.innerHTML = `<div class="linha-compra"><label class="linha"><input type="checkbox" ${item.feito ? 'checked' : ''}><span class="caixa">${MARCA}</span><span class="nome">${textoNome(item)}</span>${item.novo && !resolvido(item) ? '<span class="selo-novo">novo</span>' : ''}${q ? `<span class="qtd">${q}</span>` : ''}${li.className ? '<span class="tag-faltou">não tinha</span>' : ''}</label><button class="preco-bt${preco ? ' tem' : ''}" type="button" aria-label="Preço ou não tinha: ${esc(item.nome)}">${preco || 'R$'}</button></div>`;
   li.querySelector('input').addEventListener('change', (e) => {
     if (item.faltou && !item.feito) { item.faltou = false; e.target.checked = false; }
-    else { item.feito = e.target.checked; if (item.feito) item.faltou = false; }
+    else { item.feito = e.target.checked; if (item.feito) { item.faltou = false; delete item.novo; } }
     guardar(); atualizarContagem();
     // Dá tempo de ver a marca antes de o item descer para o fim da categoria.
     clearTimeout(linhaCompra.t);
@@ -517,7 +518,7 @@ function atualizarContagem() {
     lista.ultima = novaCompra(itens);
     // Entra uma vez só nas compras anteriores, até a próxima compra começar.
     if (!lista.compraRegistrada) {
-      compras = guardarCompra(compras, registroDaCompra(lista, itens));
+      compras = guardarOuAtualizar(compras, registroDaCompra(lista, itens));
       salvarCompras(compras);
       lista.compraRegistrada = true;
     }
@@ -613,8 +614,13 @@ async function enviarRetorno() {
 
 $('bEnviar').onclick = async () => {
   if (!itens.length) { aviso('A lista está vazia'); return; }
-  const link = await montarLink(novaCompra(itens), location.href, { nome: lista.nome, tipo: lista.tipo });
+  const meta = { nome: lista.nome, tipo: lista.tipo, uid: lista.uid };
+  const link = await montarLink(novaCompra(itens), location.href, meta);
   const texto = paraTexto(itens, lista.nome);
+  // O que entrou depois do último envio: dá para mandar só isso, como complemento.
+  const novos = novosDesdeOEnvio(lista);
+  const soNovos = novos.length && novos.length < itens.length;
+  const enviou = () => { marcarComoEnviados(lista); guardar(); };
   // Quem já está comprando quer devolver o resultado; quem montou quer mandar a lista.
   const comprando = itens.some(resolvido);
   const r = resumoDaCompra(itens);
@@ -623,24 +629,32 @@ $('bEnviar').onclick = async () => {
     <button class="btn primario grande" id="eRetorno" type="button">Enviar retorno</button>
     <button class="btn" id="eRetornoTexto" type="button">Retorno como texto</button>
     <h4 class="sub">Ou mandar a lista</h4>` : ''}
+    ${soNovos ? `<p>Desde o último envio entraram <b>${plural(novos.length, 'item', 'itens')}</b>: ${novos.slice(0, 6).map((i) => esc(i.nome)).join(', ')}${novos.length > 6 ? '…' : ''}. Quem está com a lista recebe só isso e põe direto na lista dela.</p>
+    <button class="btn ${comprando ? '' : 'primario grande'}" id="eNovos" type="button">Mandar só o que é novo (${novos.length})</button>
+    <h4 class="sub">Ou a lista inteira</h4>` : ''}
     <p>Quem receber toca no link e a lista abre pronta no celular, com ${plural(itens.length, 'item', 'itens')}.</p>
-    <button class="btn ${comprando ? '' : 'primario grande'}" id="eLink" type="button">Enviar link da lista</button>
+    <button class="btn ${comprando || soNovos ? '' : 'primario grande'}" id="eLink" type="button">Enviar link da lista</button>
     <div class="fileira">
-      <button class="btn" id="eQr" type="button">Mostrar QR code</button>
-      <button class="btn" id="eTexto" type="button">Enviar como texto</button>
+      <button class="btn" id="eQr" type="button">QR code</button>
+      <button class="btn" id="eTexto" type="button">Como texto</button>
+      <button class="btn" id="eComplemento" type="button">Como complemento</button>
     </div>
+    <p class="obs">Complemento: para quem já saiu com a lista receber estes itens e juntar à dela, sem perder o que já pegou.</p>
     <div id="qr" class="qr" hidden></div>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
   if (comprando) {
     $('eRetorno').onclick = enviarRetorno;
     $('eRetornoTexto').onclick = () => { const t = textoDoRetorno(itens); compartilhar({ text: t }, t); };
   }
-  $('eLink').onclick = () => compartilhar({ title: 'NaLista', text: '🛒 Chegou uma lista para você no NaLista — toque para abrir:', url: link }, link);
-  $('eTexto').onclick = () => compartilhar({ text: texto }, texto);
+  $('eLink').onclick = () => { enviou(); compartilhar({ title: 'NaLista', text: '🛒 Chegou uma lista para você no NaLista — toque para abrir:', url: link }, link); };
+  $('eTexto').onclick = () => { enviou(); compartilhar({ text: texto }, texto); };
+  $('eComplemento').onclick = () => { enviou(); enviarComplemento(itens, meta); };
+  if ($('eNovos')) $('eNovos').onclick = () => { enviou(); enviarComplemento(novos, meta); };
   $('eQr').onclick = () => {
     const caixa = $('qr');
     if (!caixa.hidden) { caixa.hidden = true; return; }
     const q = qrcode(0, 'L');
+    enviou();
     q.addData(link);
     q.make();
     caixa.innerHTML = q.createSvgTag({ cellSize: 4, margin: 3, scalable: true }) +
@@ -649,8 +663,18 @@ $('bEnviar').onclick = async () => {
   };
 };
 
+/** Complemento: itens soltos para juntar à lista de quem já está comprando. */
+async function enviarComplemento(lista_, meta) {
+  const limpos = novaCompra(lista_);
+  const link = await montarLinkDeComplemento(limpos, location.href, meta);
+  const texto = textoDoComplemento(limpos, meta.nome, formatarQtd);
+  compartilhar({ title: 'NaLista', text: `${texto}\n\nToque para pôr na sua lista:`, url: link }, `${texto}\n\n${link}`);
+}
+
 // ---------------------------------------------------------------- receber
 function painelRecebida(novos, origem, meta) {
+  // A mesma lista chegando de novo (já ligada a uma daqui) é um complemento: só entra o que mudou.
+  if (meta?.uid && estado.listas.some((l) => (l.uids || []).includes(meta.uid))) { painelComplemento(novos, meta, true); return; }
   const n = novos.length;
   const nomes = novos.slice(0, 8).map((i) => esc(i.nome) + (i.qtd != null ? ` <span class="cinza">${formatarQtd(i)}</span>` : '')).join(', ');
   const resto = n > 8 ? ` e mais ${n - 8}` : '';
@@ -673,21 +697,71 @@ function painelRecebida(novos, origem, meta) {
     $('rAqui').onclick = () => {
       marcarParaDesfazer();
       itens = novos; lista.compraRegistrada = false;
-      if (meta) { lista.nome = nomeLivre({ listas: estado.listas.filter((l) => l !== lista) }, meta.nome); lista.tipo = tipo; }
+      if (meta) { lista.nome = nomeLivre({ listas: estado.listas.filter((l) => l !== lista) }, meta.nome); lista.tipo = tipo; ligar(lista, meta.uid); }
       terminar('Lista recebida');
     };
     return;
   }
   $('rNova').onclick = () => {
     const nova = criarLista(nomeLivre(estado, nomeNovo), tipo, novos);
+    // A cópia recebida usa a mesma identidade da original: os complementos de
+    // qualquer um dos dois lados acham a lista certa.
+    if (meta?.uid) nova.uid = meta.uid;
+    ligar(nova, meta?.uid);
     estado.listas.push(nova);
     trocarPara(nova.id, false);
     // Lista nova não mexe em nenhuma outra: nada para desfazer.
     antesDeDesfazer = null;
     terminar(`Lista ${nova.nome} criada`, false);
   };
-  $('rJuntar').onclick = () => { marcarParaDesfazer(); itens = juntar(itens, novos); lista.compraRegistrada = false; terminar('Listas juntadas'); };
-  $('rTrocar').onclick = () => { marcarParaDesfazer(); itens = novos; lista.compraRegistrada = false; terminar('Lista substituída'); };
+  $('rJuntar').onclick = () => { marcarParaDesfazer(); itens = complementar(itens, novos).itens; ligar(lista, meta?.uid); lista.compraRegistrada = false; terminar('Listas juntadas'); };
+  $('rTrocar').onclick = () => { marcarParaDesfazer(); itens = novos; ligar(lista, meta?.uid); lista.compraRegistrada = false; terminar('Lista substituída'); };
+}
+
+/**
+ * Chegaram itens para uma lista que já está aberta em algum lugar.
+ * Destino: a lista ligada (identidade do link), senão a de mesmo nome,
+ * senão a que está em compra, senão a aberta. A pessoa pode trocar.
+ */
+function painelComplemento(chegaram, meta, mesmaLista = false) {
+  const alvo = listaDoComplemento(estado, meta);
+  const sugerida = alvo || listaEmCompra(estado) || lista;
+  const n = chegaram.length;
+  const nomes = chegaram.slice(0, 8).map((i) => esc(i.nome) + (i.qtd != null ? ` <span class="cinza">${formatarQtd(i)}</span>` : '')).join(', ') + (n > 8 ? ` e mais ${n - 8}` : '');
+  const outras = listasPorUso(estado).filter((l) => l !== sugerida);
+  abrirPainel(`<h3>${mesmaLista ? `A lista ${esc(sugerida.nome)} chegou de novo` : `Chegaram mais ${plural(n, 'item', 'itens')}`}</h3>
+    ${meta?.nome && !mesmaLista ? `<p>Para a lista <b>${esc(meta.nome)}</b>.</p>` : ''}
+    <p><b>${mesmaLista ? `${plural(n, 'item', 'itens')}:` : 'Itens:'}</b> ${nomes}.</p>
+    <p>${mesmaLista ? 'Entra só o que é novo ou aumentou. O que você já pegou ou não tinha fica como está.' : 'Entra só o que é novo ou mudou. Item que você já tinha pegado volta para pegar, com "pediram mais".'}</p>
+    <button class="btn primario grande" id="cAqui" type="button">Pôr em ${esc(sugerida.nome)}</button>
+    ${outras.length ? `<h4 class="sub">Ou em outra lista</h4><div class="chips">${outras.map((l) => `<button class="chip" type="button" data-destino="${l.id}">${esc(l.nome)}</button>`).join('')}<button class="chip" type="button" id="cNova">+ Lista nova</button></div>`
+      : '<button class="btn" id="cNova" type="button">Abrir como lista nova</button>'}
+    <button class="btn discreto" data-fechar type="button">Agora não</button>`);
+  const aplicar = (destino) => {
+    if (destino !== lista) trocarPara(destino.id, false);
+    marcarParaDesfazer();
+    const r = complementar(itens, chegaram, { reabrir: !mesmaLista });
+    itens = r.itens;
+    ligar(lista, meta?.uid);
+    lista.compraRegistrada = false;
+    editando = false; guardar(); fecharPainel(); desenhar(); window.scrollTo({ top: 0 });
+    const partes = [];
+    if (r.novos.length) partes.push(plural(r.novos.length, 'item novo', 'itens novos'));
+    if (r.reabertos.length) partes.push(`${r.reabertos.length} voltou para pegar`);
+    if (r.atualizados.length) partes.push(`${plural(r.atualizados.length, 'quantidade mudou', 'quantidades mudaram')}`);
+    aviso(partes.length ? `${partes.join(' · ')} em ${lista.nome}` : `Nada novo para ${lista.nome}`, true);
+  };
+  $('cAqui').onclick = () => aplicar(sugerida);
+  painel.querySelectorAll('[data-destino]').forEach((b) => { b.onclick = () => aplicar(estado.listas.find((l) => l.id === b.dataset.destino)); });
+  $('cNova').onclick = () => {
+    const nova = criarLista(nomeLivre(estado, meta?.nome || 'Complemento'), meta?.tipo in TIPOS ? meta.tipo : 'outros', chegaram.map((i) => ({ ...i, novo: true })));
+    ligar(nova, meta?.uid);
+    estado.listas.push(nova);
+    trocarPara(nova.id, false);
+    antesDeDesfazer = null;
+    editando = false; guardar(); fecharPainel(); desenhar();
+    aviso(`Lista ${nova.nome} criada`);
+  };
 }
 
 /** O retorno de uma compra chegou: mostra o resultado e oferece montar a próxima lista com o que faltou. */
@@ -741,6 +815,21 @@ async function receber(texto, origem) {
   try {
     const retorno = codigoDeRetorno(texto);
     if (retorno) { painelRetorno(await decodificarRetorno(retorno)); return true; }
+    const complemento = codigoDeComplemento(texto);
+    if (complemento) {
+      const { itens: chegaram, meta } = await decodificarLista(complemento);
+      if (!chegaram.length) return false;
+      painelComplemento(chegaram, meta);
+      return true;
+    }
+    // Texto de complemento colado ou compartilhado ("➕ Mais 3 itens para Mercado").
+    const doTexto = listaDoTextoDeComplemento(texto);
+    if (doTexto && !codigoDoEndereco(texto)) {
+      const chegaram = lerTexto(texto);
+      if (!chegaram.length) return false;
+      painelComplemento(chegaram, { nome: doTexto });
+      return true;
+    }
     const codigo = codigoDoEndereco(texto);
     const { itens: novos, meta } = codigo ? await decodificarLista(codigo) : { itens: lerTexto(texto), meta: null };
     if (!novos.length) return false;
@@ -764,7 +853,7 @@ $('bImportar').onclick = () => {
 
 async function lerLinkDoEndereco() {
   const hash = location.hash;
-  if (!codigoDoEndereco(hash) && !codigoDeRetorno(hash)) return;
+  if (!codigoDoEndereco(hash) && !codigoDeRetorno(hash) && !codigoDeComplemento(hash)) return;
   // Tira o código do endereço: recarregar a página não pergunta de novo.
   history.replaceState(null, '', location.pathname + location.search);
   if (!(await receber(hash, 'link'))) aviso('Esse link está incompleto');

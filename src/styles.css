@@ -253,3 +253,8 @@ li.faltou .caixa { border-style: dashed; }
 .chip.escolha[aria-pressed="true"]::before { content: "✓ "; color: var(--destaque-forte); }
 .chip.escolha[disabled] { opacity: .6; cursor: default; }
 .btn:disabled { opacity: .55; cursor: default; }
+
+/* Complemento */
+.selo-novo { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #fff; background: var(--destaque); padding: 2px 7px; border-radius: 99px; white-space: nowrap; }
+@media (prefers-color-scheme: dark) { .selo-novo { color: #0e1a13; } }
+.painel .fileira .btn { padding-left: 6px; padding-right: 6px; }

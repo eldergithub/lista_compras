@@ -19,7 +19,8 @@ export const resolvido = (i) => !!(i.feito || i.faltou);
 export function ordenarParaCompra(itens) {
   const grupos = categoriasEmUso(itens).map((cat) => {
     const doGrupo = itens.filter((i) => i.cat === cat);
-    const pendentes = doGrupo.filter((i) => !resolvido(i));
+    // Pendentes, com os que acabaram de chegar num complemento em cima.
+    const pendentes = [...doGrupo.filter((i) => !resolvido(i) && i.novo), ...doGrupo.filter((i) => !resolvido(i) && !i.novo)];
     const pegos = doGrupo.filter((i) => i.feito);
     const faltaram = doGrupo.filter((i) => !i.feito && i.faltou);
     return [cat, [...pendentes, ...pegos, ...faltaram], pendentes.length];
@@ -53,5 +54,5 @@ export const formatarPreco = (n) => MOEDA.format(n).replace(/ /g, ' ');
 
 /** Começa uma compra nova: tira marcas, "não tinha" e preços. */
 export function novaCompra(itens) {
-  return itens.map(({ feito, faltou, preco, ...resto }) => ({ ...resto, feito: false }));
+  return itens.map(({ feito, faltou, preco, novo, ...resto }) => ({ ...resto, feito: false }));
 }
