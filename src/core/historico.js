@@ -9,7 +9,7 @@
  */
 
 import { normalizar } from './categorias.js';
-import { sugerirDoCatalogo } from './catalogo.js';
+import { sugerirDoCatalogo, CATALOGO } from './catalogo.js';
 
 /** Registra itens que entraram na lista. `contar` = false só atualiza a quantidade. */
 export function registrar(historico, itens, agora = Date.now(), contar = true) {
@@ -64,4 +64,22 @@ export function deSempre(historico, itensAtuais, limite = 12) {
     .map(([, h]) => h)
     .sort((a, b) => b.vezes - a.vezes || b.ultima - a.ultima)
     .slice(0, limite);
+}
+
+/**
+ * Grade de uma categoria: primeiro o que a pessoa já comprou nela (mais
+ * vezes primeiro), depois o catálogo na ordem de sempre. Sem repetir.
+ */
+export function gradeDaCategoria(historico, cat, limite = 24) {
+  const proprias = Object.values(historico).filter((h) => h.cat === cat).sort((a, b) => b.vezes - a.vezes || b.ultima - a.ultima);
+  const vistos = new Set();
+  const resultado = [];
+  for (const s of [...proprias, ...CATALOGO.filter((c) => c.cat === cat)]) {
+    const chave = normalizar(s.nome);
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+    resultado.push({ nome: s.nome, cat, un: s.un, qtd: s.qtd ?? null, doHistorico: 'vezes' in s });
+    if (resultado.length === limite) break;
+  }
+  return resultado;
 }

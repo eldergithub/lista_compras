@@ -5,7 +5,7 @@ import '@fontsource/atkinson-hyperlegible/latin-700.css';
 import '@fontsource/bricolage-grotesque/latin-600.css';
 import '@fontsource/bricolage-grotesque/latin-800.css';
 import './styles.css';
-import { CATEGORIAS, UNIDADES, PASSO, TIPOS } from './core/categorias.js';
+import { CATEGORIAS, UNIDADES, PASSO, TIPOS, CATEGORIAS_POR_TIPO } from './core/categorias.js';
 import {
   criarItem, formatarNumero, formatarQtd, categoriasEmUso, juntar, adicionarItens, LISTA_INICIAL,
 } from './core/lista.js';
@@ -15,7 +15,7 @@ import { criarLista, migrar, listaAtiva, nomeLivre, listasPorUso } from './core/
 import { registroDaCompra, guardarCompra, totalDoMes, itensQueFaltaram } from './core/compras.js';
 import { montarBackup, lerBackup, nomeDoArquivo } from './core/backup.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from './core/retorno.js';
-import { registrar, doHistorico, sugerir, deSempre } from './core/historico.js';
+import { registrar, doHistorico, sugerir, deSempre, gradeDaCategoria } from './core/historico.js';
 import {
   ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra, resolvido,
 } from './core/compra.js';
@@ -255,33 +255,62 @@ function adicionar(novos) {
   aviso(partes.join('. '), true);
 }
 
+// Reconhecimento de fala do navegador (Chrome no Android). Sem ele, fica a dica do microfone do teclado.
+const Reconhecimento = window.SpeechRecognition || window.webkitSpeechRecognition;
+const MICROFONE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+let categoriaDaGrade = null;
+let ouvindo = null;
+
 function desenharMontagem() {
   const caixa = $('adicionar');
-  if (!editando) { caixa.innerHTML = ''; return; }
+  // O que estava sendo digitado sobrevive ao redesenho (um toque na grade redesenha a lista).
+  const digitado = $('nTexto')?.value || '';
+  if (!editando) { pararDeOuvir(); caixa.innerHTML = ''; return; }
   const sempre = deSempre(historico, itens);
   const faltaNaLista = lista.ultima ? juntar(itens, lista.ultima).length - itens.length : 0;
+  const cats = CATEGORIAS_POR_TIPO[lista.tipo] || CATEGORIAS_POR_TIPO.outros;
+  if (!cats.includes(categoriaDaGrade)) categoriaDaGrade = cats[0];
+  const naLista = new Map(itens.map((i) => [i.nome.toLowerCase(), i]));
+  const grade = gradeDaCategoria(historico, categoriaDaGrade);
   caixa.innerHTML = `
     <form class="novo" id="fNovo" autocomplete="off">
-      <div class="entrada">
+      <div class="entrada${Reconhecimento ? ' com-mic' : ''}">
         <input class="texto" id="nTexto" placeholder="Ex.: 2 kg frango, pão, 6 leite" enterkeyhint="done" autocapitalize="sentences" aria-label="Itens para adicionar">
+        ${Reconhecimento ? `<button class="btn mic" id="nMic" type="button" aria-label="Falar os itens" aria-pressed="false">${MICROFONE}</button>` : ''}
         <button class="btn primario" type="submit">Adicionar</button>
       </div>
       <div class="chips" id="nSug" aria-label="Sugestões"></div>
       <ul class="previa" id="nPrevia" hidden></ul>
-      <p class="obs">🎤 Prefere falar? Toque no microfone do teclado e diga, por exemplo: “dois quilos de frango, pão e seis leites”.</p>
+      <p class="obs" id="nDica">${Reconhecimento
+        ? 'Toque no microfone e fale um item de cada vez, com uma pausa entre eles: “dois quilos de frango… pão… seis leites”. Confira e toque em Adicionar.'
+        : 'Prefere falar? Toque no microfone do teclado e diga, por exemplo: “dois quilos de frango, pão e seis leites”.'}</p>
     </form>
     ${sempre.length ? `<div class="atalho"><h2><span>Itens de sempre</span></h2><div class="chips">${sempre.map((h, n) => `<button class="chip" type="button" data-sempre="${n}">+ ${esc(h.nome)}${h.qtd != null ? ` <span class="cinza">${formatarNumero(h.qtd)} ${esc(h.un)}</span>` : ''}</button>`).join('')}</div></div>` : ''}
-    ${faltaNaLista > 0 ? `<button class="btn repetir" id="nRepetir" type="button">↻ Repetir a última compra <span class="cinza">(+${plural(faltaNaLista, 'item', 'itens')})</span></button>` : ''}`;
+    ${faltaNaLista > 0 ? `<button class="btn repetir" id="nRepetir" type="button">↻ Repetir a última compra <span class="cinza">(+${plural(faltaNaLista, 'item', 'itens')})</span></button>` : ''}
+    <div class="atalho grade-bloco">
+      <h2><span>Escolher por categoria</span></h2>
+      <div class="abas" role="tablist" aria-label="Categorias">${cats.map((c) => `<button type="button" role="tab" class="aba" aria-selected="${c === categoriaDaGrade}" data-aba="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+      <div class="grade" role="tabpanel" aria-label="${esc(categoriaDaGrade)}">${grade.map((g, n) => {
+        const ja = naLista.get(g.nome.toLowerCase());
+        return `<button type="button" class="grade-item${ja ? ' tem' : ''}" data-grade="${n}"><span>${esc(g.nome)}</span>${ja ? `<span class="grade-qtd">${ja.qtd != null ? formatarQtd(ja) : '✓'}</span>` : ''}</button>`;
+      }).join('')}</div>
+      <p class="obs">Um toque põe na lista; outro toque aumenta a quantidade.</p>
+    </div>`;
 
   const campo = $('nTexto');
+  campo.value = digitado;
+  if (digitado) atualizarPrevia(campo);
   campo.addEventListener('input', () => atualizarPrevia(campo));
   $('fNovo').onsubmit = (e) => {
     e.preventDefault();
+    pararDeOuvir();
     const novos = paraItens(lerEntrada(campo.value));
     if (!novos.length) { campo.focus(); return; }
+    campo.value = '';
     adicionar(novos);
     $('nTexto').focus();
   };
+  if ($('nMic')) $('nMic').onclick = () => (ouvindo ? pararDeOuvir() : ouvir());
   caixa.querySelectorAll('[data-sempre]').forEach((b) => {
     b.onclick = () => {
       const h = sempre[Number(b.dataset.sempre)];
@@ -297,6 +326,88 @@ function desenharMontagem() {
       aviso(`${plural(itens.length - antes, 'item voltou', 'itens voltaram')} da última compra`, true);
     };
   }
+  // A aba escolhida fica à vista, mesmo quando está lá no fim da fileira.
+  const abaAtual = caixa.querySelector('.aba[aria-selected="true"]');
+  if (abaAtual) abaAtual.parentElement.scrollLeft = abaAtual.offsetLeft - abaAtual.parentElement.offsetLeft - 16;
+  caixa.querySelectorAll('[data-aba]').forEach((b) => {
+    b.onclick = () => { categoriaDaGrade = b.dataset.aba; desenharMontagem(); };
+  });
+  caixa.querySelectorAll('[data-grade]').forEach((b) => {
+    b.onclick = () => tocarNaGrade(grade[Number(b.dataset.grade)]);
+  });
+}
+
+/** Grade: o primeiro toque põe o item na lista; os seguintes somam um passo da unidade. */
+function tocarNaGrade(g) {
+  marcarParaDesfazer();
+  const ja = itens.find((i) => i.nome.toLowerCase() === g.nome.toLowerCase());
+  if (!ja) {
+    const h = doHistorico(historico, g.nome);
+    const item = criarItem(g.nome, g.cat, h?.qtd ?? null, h?.un || g.un);
+    itens = [...itens, item];
+    lembrar([item]);
+    lista.compraRegistrada = false;
+    guardar(); desenhar();
+    aviso(`${g.nome} adicionado`, true);
+    return;
+  }
+  const passo = PASSO[ja.un] || 1;
+  ja.qtd = ja.qtd == null ? passo : ja.qtd + passo;
+  ja.feito = false;
+  lembrar([ja], false);
+  guardar(); desenhar();
+  aviso(`${ja.nome}: ${formatarQtd(ja)}`, true);
+}
+
+/**
+ * Microfone do app: cada pausa vira um item separado por vírgula, e o texto
+ * fica na caixa para a pessoa conferir na prévia antes de adicionar.
+ */
+function ouvir() {
+  const campo = $('nTexto'), bt = $('nMic'), dica = $('nDica');
+  if (!campo || !bt) return;
+  const rec = new Reconhecimento();
+  rec.lang = 'pt-BR';
+  rec.continuous = true;
+  rec.interimResults = true;
+  const inicio = campo.value.trim();
+  const finais = [];
+  rec.onresult = (e) => {
+    let parcial = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript.trim();
+      if (!t) continue;
+      if (e.results[i].isFinal) finais.push(t); else parcial = t;
+    }
+    campo.value = [inicio, ...finais, parcial].filter(Boolean).join(', ');
+    atualizarPrevia(campo);
+  };
+  rec.onerror = (e) => {
+    const motivo = {
+      'not-allowed': 'Libere o microfone para o NaLista nas permissões do navegador.',
+      'service-not-allowed': 'Libere o microfone para o NaLista nas permissões do navegador.',
+      network: 'Falar precisa de internet. Sem sinal, use o microfone do teclado.',
+      'no-speech': 'Não ouvi nada. Toque no microfone e tente de novo.',
+      'audio-capture': 'Não encontrei o microfone do aparelho.',
+    }[e.error];
+    if (motivo) aviso(motivo);
+  };
+  rec.onend = () => {
+    ouvindo = null;
+    const b = $('nMic');
+    if (b) { b.classList.remove('ouvindo'); b.setAttribute('aria-pressed', 'false'); }
+    const d = $('nDica');
+    if (d && finais.length) d.textContent = 'Confira a prévia e toque em Adicionar.';
+  };
+  try { rec.start(); } catch { aviso('Não deu para ligar o microfone agora.'); return; }
+  ouvindo = rec;
+  bt.classList.add('ouvindo');
+  bt.setAttribute('aria-pressed', 'true');
+  if (dica) dica.textContent = 'Ouvindo… fale um item de cada vez. Toque no microfone para parar.';
+}
+
+function pararDeOuvir() {
+  if (ouvindo) { try { ouvindo.stop(); } catch { /* já parou */ } }
 }
 
 /** Prévia do que vai entrar e sugestões para a palavra que está sendo digitada. */

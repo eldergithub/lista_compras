@@ -17,6 +17,15 @@ export const ORDEM_NA_TELA = [
   'Limpeza', 'Higiene', 'Farmácia', 'Material e ferramentas', 'Festa', 'Utilidades', 'Outros',
 ];
 
+/** Categorias da grade de sugestões, por tipo de lista (a primeira abre selecionada). */
+export const CATEGORIAS_POR_TIPO = {
+  mercado: ['Hortifrúti', 'Açougue', 'Padaria', 'Frios e laticínios', 'Mercearia', 'Bebidas', 'Limpeza', 'Higiene'],
+  farmacia: ['Farmácia', 'Higiene'],
+  casa: ['Limpeza', 'Material e ferramentas', 'Utilidades'],
+  festa: ['Festa', 'Bebidas', 'Mercearia', 'Utilidades'],
+  outros: ['Hortifrúti', 'Mercearia', 'Limpeza', 'Higiene', 'Farmácia', 'Material e ferramentas', 'Festa', 'Utilidades'],
+};
+
 /** Tipos de lista: dão cor, ícone e o nome sugerido. */
 export const TIPOS = {
   mercado: { nome: 'Mercado' },

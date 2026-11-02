@@ -9,6 +9,8 @@ Marca e design system: tokens, símbolo, ícones e componentes no design system 
 ## Como usar
 
 - **Editar → caixa de adicionar:** escreva ou fale vários itens de uma vez — `2 kg frango, pão, 6 leite e tomate`, `dois quilos de carne`, `meia dúzia de ovos`. A prévia mostra quantidade, unidade e categoria antes de entrar. Pelo microfone do teclado (Gboard) funciona igual.
+- **Falar pelo app:** o botão de microfone ao lado da caixa ouve um item de cada vez (Chrome no Android, precisa de internet); o texto fica na caixa para conferir na prévia antes de adicionar.
+- **Escolher por categoria:** grade de itens por categoria, conforme o tipo da lista; um toque põe na lista, outro toque aumenta a quantidade.
 - **Sugestões:** completa o nome com o que você já comprou e um catálogo de ~280 itens, cada um com a unidade de costume (banana em dz, carne em kg, leite em cx).
 - **Itens de sempre** e **Repetir a última compra**, a partir do histórico guardado no aparelho.
 - **Detalhes do item:** toque no nome para mudar nome, observação (`maduras`, `marca X`), categoria e quantidade.

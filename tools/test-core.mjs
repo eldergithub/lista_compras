@@ -7,7 +7,8 @@ import { adivinharCategoria, categoriaCanonica } from '../src/core/categorias.js
 import { criarItem, juntar, adicionarItens, LISTA_INICIAL, formatarQtd } from '../src/core/lista.js';
 import { paraTexto, lerTexto, lerEntrada, separarItens } from '../src/core/texto.js';
 import { procurarNoCatalogo, sugerirDoCatalogo } from '../src/core/catalogo.js';
-import { registrar, sugerir, deSempre } from '../src/core/historico.js';
+import { registrar, sugerir, deSempre, gradeDaCategoria } from '../src/core/historico.js';
+import { CATEGORIAS_POR_TIPO, TIPOS } from '../src/core/categorias.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from '../src/core/retorno.js';
 import { codigoDeRetorno, montarLinkDeRetorno, decodificarLista } from '../src/core/link.js';
 import { criarLista, migrar, nomeLivre, listaAtiva } from '../src/core/listas.js';
@@ -207,6 +208,17 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   ok(msg.includes('não é um backup'), 'arquivo estranho é recusado com mensagem clara');
   try { lerBackup('isso não é json'); msg = ''; } catch (err) { msg = err.message; }
   ok(msg.includes('não é um backup'), 'arquivo que não é JSON é recusado');
+}
+
+// Grade de sugestões e fala
+{
+  const h = registrar(registrar({}, [criarItem('Macaxeira', 'Hortifrúti', 2, 'kg')]), [criarItem('Macaxeira', 'Hortifrúti', 2, 'kg')]);
+  const g = gradeDaCategoria(h, 'Hortifrúti');
+  ok(g[0].nome === 'Macaxeira' && g[0].doHistorico && g[0].qtd === 2 && g.length === 24, 'grade começa pelo que a pessoa compra');
+  ok(new Set(g.map((x) => x.nome)).size === g.length, 'grade sem repetidos');
+  ok(gradeDaCategoria({}, 'Farmácia').some((x) => x.nome === 'Dipirona'), 'grade de farmácia');
+  ok(Object.keys(TIPOS).every((t) => CATEGORIAS_POR_TIPO[t]?.length && CATEGORIAS_POR_TIPO[t].every((c) => gradeDaCategoria({}, c).length)), 'todo tipo tem categorias com sugestões');
+  ok(igual(lerEntrada('dois quilos de frango vírgula pão vírgula seis leites').map((i) => [i.nome, i.qtd]), [['Frango', 2], ['Pão', null], ['Leite', 6]]), '"vírgula" falada separa itens');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);

@@ -163,7 +163,9 @@ export function separarItens(linha) {
 
 /** O que a pessoa digitou ou falou na caixa de adicionar. */
 export function lerEntrada(texto) {
-  return String(texto).split(/\r?\n/).flatMap(separarItens).map(lerPedaco).filter(Boolean);
+  // Quem fala pelo microfone às vezes diz "vírgula" entre os itens.
+  const falado = String(texto).replace(/\s+v[ií]rgula\b\s*/gi, ', ');
+  return falado.split(/\r?\n/).flatMap(separarItens).map(lerPedaco).filter(Boolean);
 }
 
 /** Um texto inteiro colado: aceita cabeçalhos de categoria ("*Açougue*", "Feira:"). */

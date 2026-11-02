@@ -220,3 +220,25 @@ li.faltou .caixa { border-style: dashed; }
 .btn.armado { color: #fff; background: var(--perigo); border-color: var(--perigo); }
 .btn.arquivo { display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
 .btn.arquivo input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Grade de sugestões e microfone */
+.entrada.com-mic { grid-template-columns: 1fr auto auto; }
+.btn.mic { width: 46px; padding: 0; display: grid; place-items: center; }
+.btn.mic svg { width: 22px; height: 22px; fill: none; stroke: var(--texto); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.btn.mic.ouvindo { background: var(--perigo); border-color: var(--perigo); }
+.btn.mic.ouvindo svg { stroke: #fff; }
+@media (prefers-reduced-motion: no-preference) { .btn.mic.ouvindo { animation: pulsar 1.2s ease-in-out infinite; } }
+@keyframes pulsar { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--perigo) 25%, transparent); } }
+.abas { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; scrollbar-width: none; }
+.abas::-webkit-scrollbar { display: none; }
+.aba { flex: none; font: inherit; font-size: .9rem; font-weight: 700; min-height: 40px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--linha-forte); background: var(--superficie); color: var(--texto); cursor: pointer; }
+.aba[aria-selected="true"] { background: var(--texto); border-color: var(--texto); color: var(--bg); }
+.grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.grade-item {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px;
+  min-height: 56px; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--linha); background: var(--superficie);
+  color: var(--texto); font: inherit; font-size: .9rem; line-height: 1.2; text-align: left; cursor: pointer; overflow-wrap: anywhere;
+}
+.grade-item.tem { border: 2px solid var(--destaque); background: var(--destaque-leve); }
+.grade-qtd { font-size: .8rem; font-weight: 700; color: var(--destaque-forte); font-variant-numeric: tabular-nums; }
+.grade-item:focus-visible, .aba:focus-visible, .btn.mic:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
