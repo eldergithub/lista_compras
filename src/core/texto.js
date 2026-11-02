@@ -134,6 +134,8 @@ function montar(nomeBruto, qtd, un, obs) {
   }
   if (doCatalogo) nome = doCatalogo.nome;
   else nome = nome.charAt(0).toUpperCase() + nome.slice(1);
+  // "três cebolas", "quatro tomates": contou no plural, sem dizer quilo, são unidades.
+  if (!un && qtd != null && Number.isInteger(qtd) && doCatalogo && ['kg', 'g'].includes(doCatalogo.un) && /s$/i.test(nomeBruto.trim())) un = 'un';
   return {
     nome,
     digitado: nomeBruto.trim(),
@@ -184,6 +186,32 @@ export function separarItens(linha) {
  * e o pedaço fica como um item só.
  */
 export function segmentar(pedaco) {
+  // Na fala, um número no meio costuma abrir o item seguinte:
+  // "uma dipirona um xarope de guaco" → "uma dipirona" + "um xarope de guaco".
+  const porNumero = separarPorNumero(pedaco);
+  if (porNumero.length > 1) return porNumero.flatMap((p) => segmentarPeloCatalogo(p) || [p]);
+  return segmentarPeloCatalogo(pedaco);
+}
+
+function separarPorNumero(pedaco) {
+  const original = String(pedaco).trim().split(/\s+/).filter(Boolean);
+  const partes = [];
+  let atual = [], temNome = false;
+  original.forEach((p, i) => {
+    const n = normalizar(p);
+    const comecaQuantidade = /^\d+([.,]\d+)?$/.test(n) || (n in NUMEROS && n !== 'zero') || MEIO.has(n);
+    // Só abre item novo se depois do número ainda vem alguma coisa ("fator 50" no fim não separa).
+    if (comecaQuantidade && temNome && i + 1 < original.length && !(MEIO.has(n) && normalizar(original[i - 1]) === 'e')) {
+      partes.push(atual.join(' ')); atual = []; temNome = false;
+    }
+    atual.push(p);
+    if (!comecaQuantidade && !(n in UNIDADE) && !['de', 'do', 'da', 'dos', 'das', 'e'].includes(n)) temNome = true;
+  });
+  if (atual.length) partes.push(atual.join(' '));
+  return partes;
+}
+
+function segmentarPeloCatalogo(pedaco) {
   const original = String(pedaco).trim().replace(/(\d)([a-zA-Z])/g, '$1 $2').split(/\s+/).filter(Boolean);
   const palavras = original.map(normalizar);
   const partes = [];

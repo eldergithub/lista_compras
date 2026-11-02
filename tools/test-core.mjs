@@ -23,7 +23,7 @@ import { categoriasEmUso } from '../src/core/lista.js';
 import { ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra } from '../src/core/compra.js';
 import { codificar, decodificar, montarLink, codigoDoEndereco } from '../src/core/link.js';
 
-import { trechoNovo, juntarOuvidos } from '../src/core/fala.js';
+import { trechoNovo, juntarOuvidos, textoDaSessao, limparFala } from '../src/core/fala.js';
 import { alternarObs, temObs, sugestoesDeObs } from '../src/core/observacoes.js';
 
 let passou = 0, falhou = 0;
@@ -68,7 +68,7 @@ ok(igual(ent('trezentos e cinquenta gramas de queijo'), [['Queijo', 350, 'g', 'F
 ok(igual(ent('dois quilos de carne e três de frango'), [['Carne', 2, 'kg', 'Açougue'], ['Frango', 3, 'kg', 'Açougue']]), 'segundo item com número falado e unidade do catálogo');
 ok(igual(ent('arroz e feijão'), [['Arroz', null, 'pct', 'Mercearia'], ['Feijão', null, 'pct', 'Mercearia']]), 'arroz e feijão são dois');
 ok(igual(ent('frango 2kg'), [['Frango', 2, 'kg', 'Açougue']]), 'número grudado na unidade, no fim');
-ok(igual(ent('3 tomates'), [['Tomate', 3, 'kg', 'Hortifrúti']]), 'plural vira o nome do catálogo');
+ok(igual(ent('3 tomates'), [['Tomate', 3, 'un', 'Hortifrúti']]), 'plural vira o nome do catálogo e, contado, unidade');
 ok(lerEntrada('banana (maduras)')[0].obs === 'maduras', 'observação entre parênteses');
 ok(lerEntrada('Couve-flor')[0].cat === 'Hortifrúti', 'nome com hífen');
 ok(separarItens('um quilo e meio de carne').length === 1, 'quantidade com "e" fica junta');
@@ -334,6 +334,18 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   ok(alternarObs('', 'maduras') === 'maduras' && alternarObs('maduras', 'para hoje') === 'maduras, para hoje', 'chip acrescenta observação');
   ok(alternarObs('maduras, para hoje', 'maduras') === 'para hoje', 'chip tira observação');
   ok(temObs('Zero lactose', 'zero lactose') && sugestoesDeObs('Frios e laticínios').includes('zero lactose'), 'sugestões por categoria');
+}
+
+{
+  const fala = (pedacos) => lerEntrada(limparFala(textoDaSessao(pedacos))).map((i) => [i.nome, i.qtd, i.un]);
+  ok(JSON.stringify(fala(['uma', 'dipirona', 'um', 'paracetamol', 'e', 'também', 'dois', 'dorflex'])) === JSON.stringify([['Dipirona', 1, 'cx'], ['Paracetamol', 1, 'cx'], ['Dorflex', 2, 'cx']]), 'fala picada palavra por palavra (Android)');
+  ok(fala(['frango', 'frango pão', 'frango pão seis leites']).length === 3, 'fala acumulada não repete');
+  ok(fala(['pão', 'pão', 'leite']).length === 2, 'pedaço repetido não duplica');
+  const g = fala(['uma dipirona e também um xarope de guaco coloca protetor solar fator 50']);
+  ok(g.length === 3 && g[1][0] === 'Xarope de guaco' && g[2][0] === 'Protetor solar fator 50', 'número abre item novo; "fator 50" fica');
+  ok(fala(['dois quilos de frango três cebolas mais um leite zero lactose']).map((i) => i[0]).join('|') === 'Frango|Cebola|Leite', '"mais um" separa, "zero lactose" não');
+  ok(JSON.stringify(fala(['um quilo e meio de carne meia dúzia de ovos'])) === JSON.stringify([['Carne', 1.5, 'kg'], ['Ovos', 6, 'un']]), 'quantidades faladas sem pausa');
+  ok(lerEntrada(limparFala('banana a mais barata'))[0].obs === 'a mais barata', '"a mais barata" continua observação');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);

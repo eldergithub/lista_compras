@@ -18,7 +18,7 @@ import { montarBackup, lerBackup, nomeDoArquivo } from './core/backup.js';
 import { modelosPara, itensDoModelo } from './core/modelos.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from './core/retorno.js';
 import { sugestoesDeObs, alternarObs, temObs } from './core/observacoes.js';
-import { trechoNovo, juntarOuvidos } from './core/fala.js';
+import { juntarOuvidos, textoDaSessao, limparFala } from './core/fala.js';
 import { registrar, doHistorico, sugerir, deSempre, gradeDaCategoria } from './core/historico.js';
 import {
   ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra, resolvido,
@@ -524,45 +524,47 @@ function tocarNaGrade(g) {
 
 // ---------------------------------------------------------------- ditado
 /**
- * Falar a lista: cada coisa reconhecida vira uma linha na hora. O Chrome do
- * Android desliga o microfone depois de uma pausa; aqui ele religa sozinho,
- * e as frases repetidas ou acumuladas são descartadas (core/fala.js).
+ * Falar a lista. O app junta tudo o que foi ouvido num texto corrido e
+ * lê os itens desse texto inteiro (não de cada pedaço): há Androids que
+ * entregam palavra por palavra. O microfone religa sozinho quando o Chrome
+ * desliga numa pausa. A pessoa vê o que foi ouvido e os itens, e tira o que
+ * saiu errado.
  */
 function painelDitado() {
-  let ouvidos = [];
-  let ultimaFinal = '';
+  let falado = '';        // o que já foi ouvido nas sessões anteriores
+  let daSessao = '';      // o que a sessão atual ouviu até agora
+  const tirados = new Set();
   let querOuvir = true;
   let rec = null;
   let semFala = 0;
-  let parcial = '';
+  let itensOuvidos = [];
   abrirPainel(`<h3>Fale os itens</h3>
-    <p id="ftEstado" class="estado-mic ouvindo">Ouvindo… pode falar tudo seguido: “dois quilos de frango, pão, seis leites zero lactose”.</p>
+    <p id="ftEstado" class="estado-mic ouvindo">Ouvindo… fale tudo seguido, do jeito que falaria para alguém: “uma dipirona, dois quilos de frango, seis leites zero lactose”.</p>
+    <p class="ouvi" id="ftOuvi" hidden></p>
     <ul class="ouvidos" id="ftLista" hidden></ul>
-    <p class="parcial" id="ftParcial"></p>
     <div class="fileira">
       <button class="btn mic-bt ouvindo" id="ftMic" type="button" aria-pressed="true">Parar</button>
       <button class="btn primario" id="ftPor" type="button">Pôr na lista</button>
     </div>
     <button class="btn discreto" id="ftCancelar" type="button">Cancelar</button>`, 'ditado', () => { querOuvir = false; desligar(); });
 
-  const desenharOuvidos = () => {
-    const ul = $('ftLista');
+  const chave = (i) => `${i.nome.toLowerCase()}|${i.qtd ?? ''}|${i.obs || ''}`;
+  const textoTodo = () => [falado, daSessao].filter(Boolean).join(' ');
+  const atualizar = () => {
+    const texto = textoTodo();
+    itensOuvidos = juntarOuvidos([], paraItens(lerEntrada(limparFala(texto)))).filter((i) => !tirados.has(chave(i)));
+    const ouvi = $('ftOuvi'), ul = $('ftLista');
     if (!ul) return;
-    ul.hidden = !ouvidos.length;
-    ul.innerHTML = ouvidos.map((i, n) => {
+    ouvi.hidden = !texto;
+    ouvi.textContent = texto ? `Ouvi: “${texto}”` : '';
+    ul.hidden = !itensOuvidos.length;
+    ul.innerHTML = itensOuvidos.map((i, n) => {
       const q = formatarQtd(i);
       return `<li><span class="nome">${esc(i.nome)}${i.obs ? `<small>${esc(i.obs)}</small>` : ''}</span>${q ? `<span class="qtd">${q}</span>` : ''}<button type="button" class="tirar" data-tirar="${n}" aria-label="Tirar ${esc(i.nome)}">×</button></li>`;
     }).join('');
-    ul.querySelectorAll('[data-tirar]').forEach((b) => { b.onclick = () => { ouvidos.splice(Number(b.dataset.tirar), 1); desenharOuvidos(); }; });
-    $('ftPor').textContent = ouvidos.length ? `Pôr ${plural(ouvidos.length, 'item', 'itens')} na lista` : 'Pôr na lista';
-  };
-  const ouvirTrecho = (texto) => {
-    const novo = trechoNovo(ultimaFinal, texto);
-    ultimaFinal = texto;
-    if (!novo) return;
-    ouvidos = juntarOuvidos(ouvidos, paraItens(lerEntrada(novo)));
-    desenharOuvidos();
-    $('ftLista')?.lastElementChild?.scrollIntoView({ block: 'nearest' });
+    ul.querySelectorAll('[data-tirar]').forEach((b) => { b.onclick = () => { tirados.add(chave(itensOuvidos[Number(b.dataset.tirar)])); atualizar(); }; });
+    ul.scrollTop = ul.scrollHeight;
+    $('ftPor').textContent = itensOuvidos.length ? `Pôr ${plural(itensOuvidos.length, 'item', 'itens')} na lista` : 'Pôr na lista';
   };
   const estado = (texto, ouvindo) => {
     const e = $('ftEstado'), b = $('ftMic');
@@ -573,28 +575,18 @@ function painelDitado() {
     b.classList.toggle('ouvindo', ouvindo);
     b.setAttribute('aria-pressed', String(ouvindo));
   };
+  const fecharSessao = () => { if (daSessao) { falado = textoTodo(); daSessao = ''; } };
   function ligar() {
     if (!querOuvir) return;
     const r = new Reconhecimento();
     r.lang = 'pt-BR';
     r.continuous = true;
     r.interimResults = true;
-    // Alguns Androids reenviam os resultados antigos a cada evento: guarda o que cada posição já disse.
-    const vistos = new Map();
     r.onresult = (e) => {
       semFala = 0;
-      parcial = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript.trim();
-        if (!t) continue;
-        if (e.results[i].isFinal) {
-          if (vistos.get(i) === t) continue;
-          vistos.set(i, t);
-          ouvirTrecho(t);
-        } else parcial = t;
-      }
-      const p = $('ftParcial');
-      if (p) p.textContent = parcial ? `“${parcial}”` : '';
+      // Remonta a sessão inteira a cada evento: aguenta resultados reenviados, acumulados ou picados.
+      daSessao = textoDaSessao(Array.from(e.results, (x) => x[0].transcript));
+      atualizar();
     };
     r.onerror = (e) => {
       const motivo = {
@@ -608,8 +600,7 @@ function painelDitado() {
     };
     r.onend = () => {
       if (rec === r) rec = null;
-      // O que ficou só como parcial quando o microfone caiu também vale.
-      if (parcial) { ouvirTrecho(parcial); parcial = ''; const p = $('ftParcial'); if (p) p.textContent = ''; }
+      fecharSessao();
       if (querOuvir && semFala < 3) { setTimeout(ligar, 120); return; }
       if (querOuvir) { querOuvir = false; estado('Parei porque ficou em silêncio. Toque em Continuar falando quando quiser.', false); }
     };
@@ -618,16 +609,16 @@ function painelDitado() {
   function desligar() { if (rec) { try { rec.stop(); } catch { /* já parou */ } } }
 
   $('ftMic').onclick = () => {
-    if (querOuvir) { querOuvir = false; desligar(); estado(ouvidos.length ? 'Confira os itens e toque em Pôr na lista.' : 'Parado.', false); return; }
+    if (querOuvir) { querOuvir = false; desligar(); estado(itensOuvidos.length ? 'Confira os itens e toque em Pôr na lista.' : 'Parado.', false); return; }
     querOuvir = true; semFala = 0;
     estado('Ouvindo…', true);
     ligar();
   };
   $('ftPor').onclick = () => {
     querOuvir = false; desligar();
-    if (parcial) ouvirTrecho(parcial);
-    if (!ouvidos.length) { aviso('Nenhum item ouvido ainda'); return; }
-    const novos = ouvidos;
+    atualizar();
+    if (!itensOuvidos.length) { aviso('Nenhum item ouvido ainda'); return; }
+    const novos = itensOuvidos;
     fecharPainel();
     adicionar(novos);
   };
