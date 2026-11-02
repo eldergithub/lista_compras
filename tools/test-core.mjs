@@ -7,7 +7,7 @@ import { adivinharCategoria, categoriaCanonica } from '../src/core/categorias.js
 import { criarItem, juntar, adicionarItens, LISTA_INICIAL, formatarQtd } from '../src/core/lista.js';
 import { paraTexto, lerTexto, lerEntrada, separarItens } from '../src/core/texto.js';
 import { procurarNoCatalogo, sugerirDoCatalogo } from '../src/core/catalogo.js';
-import { registrar, sugerir, deSempre, gradeDaCategoria } from '../src/core/historico.js';
+import { registrar, sugerir, deSempre, gradeDaCategoria, esquecer, paraRevisar } from '../src/core/historico.js';
 import { CATEGORIAS_POR_TIPO, TIPOS } from '../src/core/categorias.js';
 import { MODELOS, modelosPara, itensDoModelo } from '../src/core/modelos.js';
 import { complementar, novosDesdeOEnvio, marcarComoEnviados, textoDoComplemento, listaDoTextoDeComplemento } from '../src/core/complemento.js';
@@ -363,6 +363,14 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   ok(Object.keys(h).length === 1, 'histórico ignora itens sem nome de verdade');
   const h2 = registrar(registrar({}, [criarItem('Frango', 'Açougue'), criarItem('Dipirona', 'Farmácia')]), [criarItem('Frango', 'Açougue'), criarItem('Dipirona', 'Farmácia')]);
   ok(deSempre(h2, [], 12, CATEGORIAS_POR_TIPO.farmacia).map((x) => x.nome).join() === 'Dipirona', 'de sempre só do tipo da lista');
+}
+
+{
+  const h = { '2': { nome: '2', cat: 'Outros', un: 'un', vezes: 1 }, pao: { nome: 'Pão', cat: 'Padaria', un: 'un', vezes: 5 }, 'frango da espanha': { nome: 'Frango da Espanha', cat: 'Açougue', un: 'kg', vezes: 2 } };
+  ok(paraRevisar(h)[0].nome === '2' && paraRevisar(h)[0].estranho, 'revisar: o que não é item vem primeiro');
+  ok(paraRevisar(h, 'espan').length === 1, 'revisar: busca');
+  const sem = esquecer(h, 'Frango da Espanha');
+  ok(!sem['frango da espanha'] && sem.pao && h['frango da espanha'], 'esquecer tira só aquele, sem mexer no original');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);

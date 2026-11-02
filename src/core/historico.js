@@ -87,3 +87,19 @@ export function gradeDaCategoria(historico, cat, limite = 24) {
   }
   return resultado;
 }
+
+/** Tira um item do histórico: ele some das sugestões, do "de sempre" e da grade. */
+export function esquecer(historico, nome) {
+  const novo = { ...historico };
+  delete novo[normalizar(nome)];
+  return novo;
+}
+
+/** O histórico para a tela de sugestões: mais usados primeiro, com o que não é item no topo para limpar. */
+export function paraRevisar(historico, filtro = '') {
+  const alvo = normalizar(filtro).trim();
+  return Object.entries(historico)
+    .map(([chave, h]) => ({ chave, ...h, estranho: !nomeValido(h.nome) }))
+    .filter((h) => !alvo || normalizar(h.nome).includes(alvo))
+    .sort((a, b) => (b.estranho - a.estranho) || (b.vezes - a.vezes) || a.nome.localeCompare(b.nome, 'pt-BR'));
+}

@@ -355,3 +355,12 @@ li.faltou .caixa { border-style: dashed; }
 }
 .grade-menos:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
 .grade-menos::after { content: ""; position: absolute; inset: -6px; }
+
+.sub-acao { display: flex; justify-content: space-between; align-items: center; }
+.link { font: inherit; font-size: .85rem; font-weight: 700; color: var(--destaque-forte); background: none; border: 0; padding: 6px 0; min-height: 36px; cursor: pointer; text-decoration: underline; text-transform: none; letter-spacing: 0; }
+.busca { width: 100%; height: 46px; font-size: 16px; }
+.sugestoes li.sugestao { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; min-height: 56px; }
+.sugestoes .nome { flex: 1; min-width: 0; }
+.sugestoes .nome small { display: block; color: var(--suave); font-size: .85rem; }
+.sugestoes .tirar { flex: none; width: 44px; height: 44px; border: 0; background: transparent; color: var(--suave); font-size: 1.5rem; cursor: pointer; border-radius: 10px; }
+.sugestoes li.estranha .nome { color: var(--perigo); }

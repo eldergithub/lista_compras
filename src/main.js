@@ -19,7 +19,7 @@ import { modelosPara, itensDoModelo } from './core/modelos.js';
 import { codificarRetorno, decodificarRetorno, oQueFaltou, textoDoRetorno } from './core/retorno.js';
 import { sugestoesDeObs, alternarObs, temObs } from './core/observacoes.js';
 import { juntarOuvidos, textoDaSessao, limparFala, separarPendente } from './core/fala.js';
-import { registrar, doHistorico, sugerir, deSempre, gradeDaCategoria } from './core/historico.js';
+import { registrar, doHistorico, sugerir, deSempre, gradeDaCategoria, esquecer, paraRevisar } from './core/historico.js';
 import {
   ordenarParaCompra, resumoDaCompra, lerPreco, formatarPreco, novaCompra, resolvido,
 } from './core/compra.js';
@@ -88,15 +88,18 @@ painelDaLista = navegavel(painelDaLista);
 painelCompras = navegavel(painelCompras);
 painelUmaCompra = navegavel(painelUmaCompra);
 painelBackup = navegavel(painelBackup);
+painelSugestoes = navegavel(painelSugestoes);
 
 // ---------------------------------------------------------------- avisos e desfazer
 let antesDeDesfazer = null;
-function aviso(msg, podeDesfazer = false) {
+function aviso(msg, podeDesfazer = false, desfazerOutro = null) {
   const t = $('aviso');
   t.innerHTML = `<span>${esc(msg)}</span>${podeDesfazer ? '<button type="button" id="aDesfazer">Desfazer</button>' : ''}`;
   t.classList.add('mostrar');
   t.classList.toggle('com-acao', podeDesfazer);
-  if (podeDesfazer) {
+  if (podeDesfazer && desfazerOutro) {
+    $('aDesfazer').onclick = () => { desfazerOutro(); t.classList.remove('mostrar', 'com-acao'); };
+  } else if (podeDesfazer) {
     $('aDesfazer').onclick = () => {
       if (!antesDeDesfazer) return;
       if (antesDeDesfazer.lista !== lista.id) trocarPara(antesDeDesfazer.lista, false);
@@ -491,7 +494,7 @@ function painelEscolher() {
       <button class="btn" id="eProntas" type="button">Listas prontas</button>
       ${faltaNaLista > 0 ? `<button class="btn" id="eRepetir" type="button">Repetir a última <span class="cinza">(+${faltaNaLista})</span></button>` : ''}
     </div>
-    ${sempre.length ? `<h4 class="sub">De sempre</h4><div class="chips">${sempre.map((h, n) => `<button class="chip" type="button" data-sempre="${n}">+ ${esc(h.nome)}${h.qtd != null ? ` <span class="cinza">${formatarNumero(h.qtd)} ${esc(h.un)}</span>` : ''}</button>`).join('')}</div>` : ''}
+    ${sempre.length ? `<h4 class="sub sub-acao"><span>De sempre</span><button type="button" class="link" id="eAjustar">Ajustar</button></h4><div class="chips">${sempre.map((h, n) => `<button class="chip" type="button" data-sempre="${n}">+ ${esc(h.nome)}${h.qtd != null ? ` <span class="cinza">${formatarNumero(h.qtd)} ${esc(h.un)}</span>` : ''}</button>`).join('')}</div>` : ''}
     <h4 class="sub">Por categoria</h4>
     <div class="abas" role="tablist" aria-label="Categorias">${cats.map((c) => `<button type="button" role="tab" class="aba" aria-selected="${c === categoriaDaGrade}" data-aba="${esc(c)}">${esc(c)}</button>`).join('')}</div>
     <div class="grade" role="tabpanel" aria-label="${esc(categoriaDaGrade)}">${grade.map((g, n) => {
@@ -504,6 +507,7 @@ function painelEscolher() {
   const abaAtual = painel.querySelector('.aba[aria-selected="true"]');
   if (abaAtual) abaAtual.parentElement.scrollLeft = abaAtual.offsetLeft - abaAtual.parentElement.offsetLeft - 16;
   $('eProntas').onclick = painelModelos;
+  if ($('eAjustar')) $('eAjustar').onclick = () => painelSugestoes();
   if ($('eRepetir')) {
     $('eRepetir').onclick = () => {
       marcarParaDesfazer();
@@ -696,6 +700,46 @@ function painelDitado() {
   ligar();
 }
 
+// ---------------------------------------------------------------- sugestões
+/**
+ * O que o app aprendeu com as listas (histórico): aparece no "de sempre",
+ * na grade e no autocompletar. Aqui a pessoa tira o que não faz sentido,
+ * como palavras que o microfone entendeu errado.
+ */
+function painelSugestoes() {
+  abrirPainel(`<h3>Sugestões</h3>
+    <p>O app sugere o que você já pôs em listas. Toque no × para tirar o que não faz sentido: some do "de sempre", da grade e do autocompletar. Não mexe nas suas listas.</p>
+    <input class="texto busca" id="sgBusca" type="search" placeholder="Procurar" autocomplete="off" aria-label="Procurar nas sugestões">
+    <div id="sgEstranhos"></div>
+    <ul class="listas sugestoes" id="sgLista"></ul>
+    <button class="btn discreto" data-fechar type="button">Fechar</button>`, 'escolher');
+  const busca = $('sgBusca');
+  const tirar = (nomes) => {
+    const antes = historico;
+    for (const n of nomes) historico = esquecer(historico, n);
+    salvarHistorico(historico);
+    desenharLista();
+    aviso(nomes.length === 1 ? `${nomes[0]} não aparece mais` : `${plural(nomes.length, 'sugestão tirada', 'sugestões tiradas')}`, true, () => {
+      historico = antes; salvarHistorico(historico); desenharLista();
+    });
+  };
+  function desenharLista() {
+    if (!$('sgLista')) return;
+    const todos = paraRevisar(historico, busca.value);
+    const estranhos = paraRevisar(historico).filter((h) => h.estranho);
+    $('sgEstranhos').innerHTML = estranhos.length
+      ? `<button class="btn grande" id="sgLimpar" type="button">Tirar ${plural(estranhos.length, 'palavra solta', 'palavras soltas')} (${estranhos.slice(0, 4).map((h) => `“${esc(h.nome)}”`).join(', ')})</button>`
+      : '';
+    if ($('sgLimpar')) $('sgLimpar').onclick = () => tirar(estranhos.map((h) => h.nome));
+    $('sgLista').innerHTML = todos.length
+      ? todos.map((h, n) => `<li class="sugestao${h.estranho ? ' estranha' : ''}"><span class="nome">${esc(h.nome)}<small>${esc(h.cat || 'Outros')} · ${h.vezes ? plural(h.vezes, 'lista', 'listas') : 'só ajustado'}</small></span><button type="button" class="tirar" data-tirar="${n}" aria-label="Tirar ${esc(h.nome)} das sugestões">×</button></li>`).join('')
+      : `<li class="sugestao"><span class="nome cinza">${busca.value ? 'Nada com esse nome.' : 'Ainda não há sugestões. Elas aparecem conforme você usa as listas.'}</span></li>`;
+    $('sgLista').querySelectorAll('[data-tirar]').forEach((b) => { b.onclick = () => tirar([todos[Number(b.dataset.tirar)].nome]); });
+  }
+  busca.addEventListener('input', desenharLista);
+  desenharLista();
+}
+
 // ---------------------------------------------------------------- contagem e limpar
 function atualizarContagem() {
   const r = resumoDaCompra(itens);
@@ -792,6 +836,7 @@ function painelMais() {
       ${itens.length ? opcao('mEsvaziar', 'Esvaziar a lista', `Tira os ${plural(itens.length, 'item', 'itens')} de ${esc(lista.nome)}`) : ''}
       ${opcao('mCompras', 'Compras anteriores', 'O que foi pego, o que faltou e quanto deu')}
       ${opcao('mBackup', 'Backup', 'Salvar ou restaurar tudo num arquivo')}
+      ${opcao('mSugestoes', 'Sugestões', 'Tirar o que aparece no "de sempre" e na grade sem fazer sentido')}
       ${opcao('mDica', 'Como usar', 'Mostra de novo as dicas da lista')}
     </ul>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
@@ -821,6 +866,7 @@ function painelMais() {
   }
   $('mCompras').onclick = painelCompras;
   $('mBackup').onclick = painelBackup;
+  $('mSugestoes').onclick = () => painelSugestoes();
   $('mDica').onclick = () => { try { localStorage.removeItem(DICA_GESTOS); } catch { /* ok */ } fecharPainel(); desenhar(); window.scrollTo({ top: 0 }); };
 }
 $('bMais').onclick = painelMais;
