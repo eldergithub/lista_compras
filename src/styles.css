@@ -516,3 +516,10 @@ body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 }
 .dica-gestos p { margin: 0; color: var(--suave); }
 .dica-gestos .fileira .btn { flex: 1; }
+
+.faixa-samsung { flex-wrap: wrap; align-items: flex-start; position: relative; padding-right: 44px; }
+.faixa-samsung .x { position: absolute; top: 4px; right: 4px; }
+.faixa-samsung > span { flex: 1 1 100%; }
+.faixa-acoes { display: flex; gap: 8px; flex: 1 1 100%; }
+.faixa-acoes .btn { flex: 1; min-height: 44px; padding: 8px 10px; }
+.faixa-samsung .faixa-acoes { margin-right: -32px; }

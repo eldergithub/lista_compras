@@ -1758,8 +1758,38 @@ function mostrarFaixa(html, aoClicar) {
 
 const instalado = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 let pedidoDeInstalacao = null;
+/*
+ * Samsung Internet: ao instalar, ele mesmo monta o pacote do app, marcado para
+ * um Android antigo, e o Play Protect bloqueia ("App de risco bloqueado"). No
+ * Chrome o pacote é do Google e instala sem aviso. Então, no navegador da
+ * Samsung, em vez de "Instalar", o app sugere abrir no Chrome.
+ */
+const ehSamsung = /SamsungBrowser/i.test(navigator.userAgent);
+const endereco = location.origin + location.pathname;
+function sugerirChrome() {
+  let dispensou = false;
+  try { dispensou = localStorage.getItem('nalista-dica-samsung') === '1'; } catch { /* ok */ }
+  if (instalado || dispensou) return;
+  faixa.innerHTML = `<span>No navegador da Samsung, o Android bloqueia a instalação. Para instalar o NaLista, abra no <b>Chrome</b>.</span>
+    <div class="faixa-acoes"><button class="btn primario" id="fxChrome" type="button">Abrir no Chrome</button><button class="btn" id="fxCopiar" type="button">Copiar endereço</button></div>
+    <button class="x" id="fxFechar" type="button" aria-label="Dispensar">×</button>`;
+  faixa.hidden = false;
+  faixa.classList.add('faixa-samsung');
+  // Link de intenção do Android: abre este endereço direto no Chrome.
+  // A lista aberta vai junto no link: no Chrome ela chega pronta para usar.
+  $('fxChrome').onclick = async () => {
+    const alvo = itens.length ? await montarLink(novaCompra(itens), endereco, { nome: lista.nome, tipo: lista.tipo, uid: lista.uid }) : endereco;
+    const [semHash, hash = ''] = alvo.split('#');
+    location.href = `intent://${semHash.replace(/^https?:\/\//, '')}${hash ? `#${hash}` : ''}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(alvo)};end`;
+  };
+  $('fxCopiar').onclick = () => copiar(endereco);
+  $('fxFechar').onclick = () => { faixa.hidden = true; try { localStorage.setItem('nalista-dica-samsung', '1'); } catch { /* ok */ } };
+}
+if (ehSamsung) sugerirChrome();
+
 addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
+  if (ehSamsung) return; // a faixa do Chrome já está no lugar
   pedidoDeInstalacao = e;
   mostrarFaixa('<span>Instale a lista no celular para abrir como app, mesmo sem internet.</span><button class="btn primario" data-acao type="button">Instalar</button><button class="x" data-dispensar type="button" aria-label="Dispensar">×</button>', async () => {
     faixa.hidden = true;
