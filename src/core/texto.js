@@ -185,12 +185,13 @@ export function separarItens(linha) {
  * catálogo + observação); se sobrar uma palavra desconhecida, devolve null
  * e o pedaço fica como um item só.
  */
-export function segmentar(pedaco) {
+export function segmentar(pedaco, minimo = 2) {
   // Na fala, um número no meio costuma abrir o item seguinte:
   // "uma dipirona um xarope de guaco" → "uma dipirona" + "um xarope de guaco".
   const porNumero = separarPorNumero(pedaco);
-  if (porNumero.length > 1) return porNumero.flatMap((p) => segmentarPeloCatalogo(p) || [p]);
-  return segmentarPeloCatalogo(pedaco);
+  // Um número no meio já mostra que é uma lista: aí dois produtos seguidos já separam.
+  if (porNumero.length > 1) return porNumero.flatMap((p) => segmentarPeloCatalogo(p, 2) || [p]);
+  return segmentarPeloCatalogo(pedaco, minimo);
 }
 
 function separarPorNumero(pedaco) {
@@ -211,7 +212,7 @@ function separarPorNumero(pedaco) {
   return partes;
 }
 
-function segmentarPeloCatalogo(pedaco) {
+function segmentarPeloCatalogo(pedaco, minimo = 2) {
   const original = String(pedaco).trim().replace(/(\d)([a-zA-Z])/g, '$1 $2').split(/\s+/).filter(Boolean);
   const palavras = original.map(normalizar);
   const partes = [];
@@ -236,17 +237,20 @@ function segmentarPeloCatalogo(pedaco) {
     while (i < palavras.length && (n = tamanhoDoModificador(palavras, i))) i += n;
     partes.push(original.slice(inicio, i).join(' '));
   }
-  return partes.length > 1 ? partes : null;
+  return partes.length >= minimo ? partes : null;
 }
 
 /** O que a pessoa digitou ou falou na caixa de adicionar. */
-export function lerEntrada(texto) {
+export function lerEntrada(texto, { fala = false } = {}) {
+  // Digitado, "queijo manteiga" é um produto só: sem vírgula, só separa a partir
+  // de três produtos seguidos. Na fala ("frango pão"), dois já separam.
+  const minimo = fala ? 2 : 3;
   // Quem fala pelo microfone às vezes diz "vírgula" ou "próximo" entre os itens.
   const falado = String(texto)
     .replace(/\s+v[ií]rgula\b\s*/gi, ', ')
     .replace(/\s*\bpr[oó]ximo( item)?\b\s*/gi, ', ');
   return falado.split(/\r?\n/).flatMap(separarItens)
-    .flatMap((p) => segmentar(p) || [p])
+    .flatMap((p) => segmentar(p, minimo) || [p])
     .map(lerPedaco).filter((i) => i && nomeValido(i.nome));
 }
 

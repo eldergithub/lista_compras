@@ -10,20 +10,21 @@ export const CATEGORIAS = [
   'Açougue', 'Padaria', 'Frios e laticínios', 'Hortifrúti',
   'Mercearia', 'Bebidas', 'Limpeza', 'Higiene', 'Utilidades', 'Outros',
   'Farmácia', 'Material e ferramentas', 'Festa',
+  'Congelados', 'Doces e lanches', 'Pet', 'Bebê', 'Papelaria',
 ];
 
 export const ORDEM_NA_TELA = [
-  'Hortifrúti', 'Açougue', 'Padaria', 'Frios e laticínios', 'Mercearia', 'Bebidas',
-  'Limpeza', 'Higiene', 'Farmácia', 'Material e ferramentas', 'Festa', 'Utilidades', 'Outros',
+  'Hortifrúti', 'Açougue', 'Padaria', 'Frios e laticínios', 'Mercearia', 'Doces e lanches', 'Bebidas', 'Congelados',
+  'Limpeza', 'Higiene', 'Bebê', 'Pet', 'Farmácia', 'Papelaria', 'Material e ferramentas', 'Festa', 'Utilidades', 'Outros',
 ];
 
 /** Categorias da grade de sugestões, por tipo de lista (a primeira abre selecionada). */
 export const CATEGORIAS_POR_TIPO = {
-  mercado: ['Hortifrúti', 'Açougue', 'Padaria', 'Frios e laticínios', 'Mercearia', 'Bebidas', 'Limpeza', 'Higiene'],
-  farmacia: ['Farmácia', 'Higiene'],
-  casa: ['Limpeza', 'Material e ferramentas', 'Utilidades'],
-  festa: ['Festa', 'Bebidas', 'Mercearia', 'Utilidades'],
-  outros: ['Hortifrúti', 'Mercearia', 'Limpeza', 'Higiene', 'Farmácia', 'Material e ferramentas', 'Festa', 'Utilidades'],
+  mercado: ['Hortifrúti', 'Açougue', 'Padaria', 'Frios e laticínios', 'Mercearia', 'Doces e lanches', 'Bebidas', 'Congelados', 'Limpeza', 'Higiene', 'Bebê', 'Pet'],
+  farmacia: ['Farmácia', 'Higiene', 'Bebê'],
+  casa: ['Limpeza', 'Material e ferramentas', 'Utilidades', 'Papelaria'],
+  festa: ['Festa', 'Doces e lanches', 'Bebidas', 'Mercearia', 'Utilidades'],
+  outros: ['Hortifrúti', 'Mercearia', 'Limpeza', 'Higiene', 'Farmácia', 'Bebê', 'Pet', 'Papelaria', 'Material e ferramentas', 'Festa', 'Utilidades'],
 };
 
 /** Tipos de lista: dão cor, ícone e o nome sugerido. */
@@ -49,10 +50,15 @@ const PALAVRAS = {
   'Mercearia': 'arroz feijao cuscuz farinha acucar cafe oleo macarrao sal maizena fermento molho azeite aveia granola biscoito bolacha extrato milho ervilha atum sardinha tapioca leite-condensado achocolatado gelatina tempero vinagre ketchup maionese mostarda pipoca',
   'Bebidas': 'agua refrigerante suco cerveja vinho cha energetico gelo',
   'Limpeza': 'detergente sabao amaciante desinfetante sanitaria esponja multiuso alvejante limpador vassoura rodo pano',
-  'Higiene': 'higienico pasta sabonete shampoo xampu condicionador desodorante escova absorvente fio fralda cotonete',
+  'Higiene': 'higienico pasta sabonete shampoo xampu condicionador desodorante escova absorvente fio cotonete perfume esmalte talco',
   'Utilidades': 'amanteigado aluminio filme guardanapo saco sacos lixo pilha lampada fosforo vela',
   'Farmácia': 'remedio remedios dipirona paracetamol ibuprofeno amoxicilina omeprazol loratadina dorflex neosaldina buscopan vitamina soro curativo curativos esparadrapo gaze termometro xarope pomada colirio antialergico antiacido band-aid seringa',
   'Material e ferramentas': 'parafuso parafusos prego pregos tinta pincel rolo fita cola cimento argamassa areia tijolo cano torneira tomada interruptor broca serra lixa chave martelo bucha veda-rosca',
+  'Congelados': 'congelado congelada congelados congeladas sorvete picole acai nuggets pizza empanado empanados',
+  'Doces e lanches': 'bala balas pirulito chiclete bombom chocolate pacoca cocada chips pastel coxinha empada brownie pudim doce doces',
+  'Pet': 'racao pet gato gatos cachorro cachorros cao petisco coleira antipulgas',
+  'Bebê': 'bebe fralda fraldas mamadeira chupeta papinha',
+  'Papelaria': 'caneta canetas lapis caderno cadernos borracha apontador regua sulfite grampeador clipe envelope cartolina',
   'Festa': 'balao baloes bexiga bexigas confete serpentina chapeuzinho lembrancinha lembrancinhas presente embrulho docinho docinhos salgadinho salgadinhos forminha forminhas topo',
 };
 

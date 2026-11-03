@@ -19,6 +19,11 @@ export const OBS_POR_CATEGORIA = {
   'Material e ferramentas': ['ver a medida', 'qualquer marca'],
   'Festa': ['colorido', 'descartável', 'tema da festa'],
   'Utilidades': ['qualquer marca', 'ver a medida'],
+  'Congelados': ['pote grande', 'zero açúcar', 'pacote grande', 'sabor chocolate'],
+  'Doces e lanches': ['sem açúcar', 'pacote grande', 'sabor chocolate', 'para a lancheira'],
+  'Pet': ['para filhote', 'para adulto', 'para gato', 'para cachorro', 'pacote grande'],
+  'Bebê': ['tamanho P', 'tamanho M', 'tamanho G', 'recém-nascido', 'sem perfume'],
+  'Papelaria': ['azul', 'preta', 'pacote', 'para a escola'],
   'Outros': [],
 };
 const GERAIS = ['qualquer marca', 'a mais barata', 'se tiver promoção'];

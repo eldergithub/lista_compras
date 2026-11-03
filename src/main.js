@@ -614,7 +614,7 @@ function painelDitado() {
     const texto = textoTodo();
     // O fim pela metade ("…e dois quilos de") espera a pessoa terminar de pensar.
     const { completo, pendente } = separarPendente(texto);
-    itensOuvidos = juntarOuvidos([], paraItens(lerEntrada(limparFala(completo)))).filter((i) => !tirados.has(chave(i)));
+    itensOuvidos = juntarOuvidos([], paraItens(lerEntrada(limparFala(completo), { fala: true }))).filter((i) => !tirados.has(chave(i)));
     const caixa = $('ftOuviCaixa'), ul = $('ftLista');
     if (!ul) return;
     caixa.hidden = !texto;

@@ -8,7 +8,7 @@ import { criarItem, juntar, adicionarItens, LISTA_INICIAL, formatarQtd } from '.
 import { paraTexto, lerTexto, lerEntrada, separarItens } from '../src/core/texto.js';
 import { procurarNoCatalogo, sugerirDoCatalogo } from '../src/core/catalogo.js';
 import { registrar, sugerir, deSempre, gradeDaCategoria, esquecer, paraRevisar } from '../src/core/historico.js';
-import { CATEGORIAS_POR_TIPO, TIPOS } from '../src/core/categorias.js';
+import { CATEGORIAS_POR_TIPO, TIPOS, CATEGORIAS } from '../src/core/categorias.js';
 import { MODELOS, modelosPara, itensDoModelo } from '../src/core/modelos.js';
 import { complementar, novosDesdeOEnvio, marcarComoEnviados, textoDoComplemento, listaDoTextoDeComplemento } from '../src/core/complemento.js';
 import { listaDoComplemento, ligar, listaEmCompra } from '../src/core/listas.js';
@@ -52,7 +52,7 @@ ok(igual(resumo(solta), [
   ['Carne', 'Açougue', 2, 'kg'],
   ['Leite', 'Frios e laticínios', 6, 'cx'],
   ['Iogurte', 'Frios e laticínios', 3, 'un'],
-  ['Muçarela', 'Frios e laticínios', 500, 'g'],
+  ['Queijo muçarela', 'Frios e laticínios', 500, 'g'],
   ['Banana', 'Hortifrúti', 1, 'dz'],
   ['Uva', 'Hortifrúti', null, 'un'],
 ]), 'lista solta com quantidades em vários formatos');
@@ -309,7 +309,7 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   const d = lerEntrada('dois quilos de frango pão seis leites');
   ok(d.length === 3 && d[0].qtd === 2 && d[0].un === 'kg' && d[2].qtd === 6, 'sem pausa e com quantidades');
   ok(nomes('pão de queijo e leite') === 'Pão de queijo|Leite', 'produto mais comprido vence');
-  ok(nomes('queijo coalho presunto') === 'Queijo coalho|Presunto', 'dois produtos de duas palavras');
+  ok(lerEntrada('queijo coalho presunto', { fala: true }).map((i) => i.nome).join('|') === 'Queijo coalho|Presunto', 'dois produtos de duas palavras (fala)');
   ok(lerEntrada('sabão de coco biscoito da vó').length === 1, 'palavra desconhecida: não separa');
   ok(nomes('alface, tomate próximo cebola') === 'Alface|Tomate|Cebola', '"próximo" separa');
   const lz = lerEntrada('leite zero lactose')[0];
@@ -339,7 +339,7 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
 }
 
 {
-  const fala = (pedacos) => lerEntrada(limparFala(textoDaSessao(pedacos))).map((i) => [i.nome, i.qtd, i.un]);
+  const fala = (pedacos) => lerEntrada(limparFala(textoDaSessao(pedacos)), { fala: true }).map((i) => [i.nome, i.qtd, i.un]);
   ok(JSON.stringify(fala(['uma', 'dipirona', 'um', 'paracetamol', 'e', 'também', 'dois', 'dorflex'])) === JSON.stringify([['Dipirona', 1, 'cx'], ['Paracetamol', 1, 'cx'], ['Dorflex', 2, 'cx']]), 'fala picada palavra por palavra (Android)');
   ok(fala(['frango', 'frango pão', 'frango pão seis leites']).length === 3, 'fala acumulada não repete');
   ok(fala(['pão', 'pão', 'leite']).length === 2, 'pedaço repetido não duplica');
@@ -402,6 +402,26 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   const l = lerTexto(lens);
   ok(l.map((i) => i.nome).join('|') === 'Carne|Arroz|Feijão|Leite|Banana', 'texto de foto: ignora data, letra e número soltos');
   ok(l.find((i) => i.nome === 'Leite')?.obs === 'zero lactose' && l.find((i) => i.nome === 'Carne')?.qtd === 2, 'texto de foto: quantidade e observação');
+}
+
+{
+  const um = (t) => lerEntrada(t)[0];
+  const ent = (t) => lerEntrada(t).map((i) => `${i.nome}|${i.cat}|${i.un}`);
+  ok(lerEntrada('queijo manteiga').length === 1 && um('queijo manteiga').nome === 'Queijo manteiga', 'digitado: "queijo manteiga" é um produto só');
+  ok(lerEntrada('pão leite').length === 1 && lerEntrada('pão leite', { fala: true }).length === 2, 'sem vírgula: digitado junta dois, falado separa');
+  ok(lerEntrada('frango pão leite').length === 3, 'digitado: três produtos seguidos separam');
+  ok(um('Omo').nome === 'Omo' && um('Omo').cat === 'Limpeza' && um('Omo').un === 'cx', 'marca: nome da marca, categoria e unidade do produto');
+  ok(um('coca').cat === 'Bebidas' && um('danone').cat === 'Frios e laticínios' && um('ypê').cat === 'Limpeza' && um('pampers').cat === 'Bebê', 'marcas comuns');
+  ok(um('aipim').nome === 'Macaxeira' && um('mandioca').nome === 'Macaxeira' && um('refri').nome === 'Refrigerante', 'sinônimos');
+  ok(ent('ração, areia de gato, sorvete, chiclete, papinha, caneta').join() === 'Ração|Pet|kg,Areia de gato|Pet|pct,Sorvete|Congelados|un,Chiclete|Doces e lanches|pct,Papinha|Bebê|un,Caneta|Papelaria|un', 'categorias novas');
+  ok(um('ovo caipira').un === 'dz' && um('batata frita congelada').cat === 'Congelados', 'unidades e categorias corrigidas');
+  ok(procurarNoCatalogo('vitamina c').nome === 'Vitamina C', 'catálogo continua lendo nomes com letra solta');
+  ok(CATEGORIAS_POR_TIPO.mercado.includes('Congelados') && CATEGORIAS_POR_TIPO.mercado.includes('Pet'), 'grade do mercado com as categorias novas');
+}
+
+{
+  // Links antigos guardam a categoria pela posição: as novas só podem entrar no fim.
+  ok(CATEGORIAS.slice(0, 13).join() === 'Açougue,Padaria,Frios e laticínios,Hortifrúti,Mercearia,Bebidas,Limpeza,Higiene,Utilidades,Outros,Farmácia,Material e ferramentas,Festa', 'categorias antigas na mesma posição');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);
