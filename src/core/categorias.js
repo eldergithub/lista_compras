@@ -36,7 +36,7 @@ export const TIPOS = {
   outros: { nome: 'Outros' },
 };
 
-export const UNIDADES = ['un', 'kg', 'g', 'L', 'cx', 'pct', 'dz'];
+export const UNIDADES = ['un', 'kg', 'g', 'L', 'cx', 'pct'];
 
 /** Passo dos botões − e +. O que não está aqui anda de 1 em 1. */
 export const PASSO = { kg: 0.5, g: 100 };

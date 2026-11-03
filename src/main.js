@@ -7,7 +7,7 @@ import '@fontsource/bricolage-grotesque/latin-800.css';
 import './styles.css';
 import { CATEGORIAS, UNIDADES, PASSO, TIPOS, CATEGORIAS_POR_TIPO } from './core/categorias.js';
 import {
-  criarItem, formatarNumero, formatarQtd, categoriasEmUso, juntar, adicionarItens, LISTA_INICIAL,
+  criarItem, semDuzia, formatarNumero, formatarQtd, categoriasEmUso, juntar, adicionarItens, LISTA_INICIAL,
 } from './core/lista.js';
 import { paraTexto, lerTexto, lerEntrada, separarItens, lerPedaco } from './core/texto.js';
 import { montarLink, montarLinkDeComplemento, decodificarLista, codigoDoEndereco, codigoDeRetorno, codigoDeComplemento, montarLinkDeRetorno } from './core/link.js';
@@ -39,8 +39,9 @@ let estado = migrar(guardadoAntes, carregar(), LISTA_INICIAL);
 if (!guardadoAntes && carregarUltima()) estado.listas[0].ultima = carregarUltima();
 let lista = listaAtiva(estado);
 let itens = lista.itens;
-let historico = carregarHistorico();
-let prontas = carregarProntas();
+// Dúzia saiu do app: o que estiver guardado em dz vira unidades ao abrir.
+let historico = Object.fromEntries(Object.entries(carregarHistorico()).map(([k, h]) => [k, semDuzia(h)]));
+let prontas = carregarProntas().map((p) => ({ ...p, itens: (p.itens || []).map(semDuzia) }));
 let compras = carregarCompras();
 let orcamento = carregarOrcamento();
 function guardar() {

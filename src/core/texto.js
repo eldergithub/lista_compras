@@ -7,7 +7,8 @@
  * - vários itens numa linha só ("pão, 6 leite, banana e tomate");
  * - o que sai do microfone do teclado ("dois quilos de frango",
  *   "meia dúzia de ovos", "um quilo e meio de carne");
- * - observação entre parênteses ("Banana — 1 dz (maduras)").
+ * - observação entre parênteses ("Banana — 1 kg (maduras)");
+ * - dúzia, que vira unidades ("1 dz ovos" → 12 ovos).
  *
  * Quando a pessoa não diz a unidade, vale a do catálogo: "6 leite" vira
  * 6 cx, "2 carne" vira 2 kg.
@@ -107,8 +108,6 @@ export function lerPedaco(texto) {
     if (palavras[j] === 'e' && MEIO.has(palavras[j + 1])) { qtd += 0.5; j += 2; }
     if (['de', 'do', 'da', 'dos', 'das'].includes(palavras[j])) j++;
     const nome = original.slice(j).join(' ');
-    // "meia dúzia de ovos" fica mais claro como 6 unidades.
-    if (un === 'dz' && qtd === 0.5) { qtd = 6; un = 'un'; }
     if (nome) return montar(nome, qtd, un, obs);
   }
 
@@ -117,6 +116,8 @@ export function lerPedaco(texto) {
 
 /** Completa o item com o catálogo: nome bem escrito, categoria e unidade de costume. */
 function montar(nomeBruto, qtd, un, obs) {
+  // Dúzia escrita ou falada vira unidades: "1 dz ovos" → 12, "meia dúzia" → 6.
+  if (un === 'dz') { qtd = Math.round((qtd ?? 1) * 12); un = 'un'; }
   let nome = nomeBruto.trim().replace(/\s+/g, ' ');
   if (!nome) return null;
   let doCatalogo = procurarNoCatalogo(nome);

@@ -12,7 +12,7 @@
  */
 
 import { TIPOS } from './categorias.js';
-import { novoId } from './lista.js';
+import { novoId, semDuzia } from './lista.js';
 
 export const tipoValido = (t) => (t in TIPOS ? t : 'outros');
 
@@ -29,7 +29,7 @@ export function criarLista(nome, tipo = 'mercado', itens = [], agora = Date.now(
 export function migrar(guardado, itensAntigos, padrao) {
   if (guardado && guardado.v === 2 && Array.isArray(guardado.listas) && guardado.listas.length) {
     const ativa = guardado.listas.some((l) => l.id === guardado.ativa) ? guardado.ativa : guardado.listas[0].id;
-    return { v: 2, listas: guardado.listas.map((l) => ({ ...l, uid: l.uid || l.id, uids: Array.isArray(l.uids) ? l.uids : [l.uid || l.id], tipo: tipoValido(l.tipo), itens: Array.isArray(l.itens) ? l.itens : [] })), ativa };
+    return { v: 2, listas: guardado.listas.map((l) => ({ ...l, uid: l.uid || l.id, uids: Array.isArray(l.uids) ? l.uids : [l.uid || l.id], tipo: tipoValido(l.tipo), itens: Array.isArray(l.itens) ? l.itens.map(semDuzia) : [], ...(Array.isArray(l.ultima) ? { ultima: l.ultima.map(semDuzia) } : {}) })), ativa };
   }
   const primeira = criarLista('Mercado', 'mercado', Array.isArray(itensAntigos) ? itensAntigos : padrao);
   return { v: 2, listas: [primeira], ativa: primeira.id };

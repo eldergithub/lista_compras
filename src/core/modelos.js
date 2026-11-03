@@ -1,6 +1,6 @@
 /**
  * Listas prontas: pontos de partida para montar uma lista em poucos toques.
- * Os itens são escritos como a pessoa digitaria ("1 dz ovos") e passam pelo
+ * Os itens são escritos como a pessoa digitaria ("12 ovos") e passam pelo
  * mesmo leitor da caixa de adicionar, então ganham categoria e unidade do catálogo.
  */
 
@@ -9,11 +9,11 @@ import { criarItem } from './lista.js';
 
 export const MODELOS = [
   { id: 'mes', nome: 'Compra do mês', tipo: 'mercado', descricao: 'Mercearia, limpeza e higiene que acabam todo mês',
-    itens: 'arroz, feijão, açúcar, café, óleo, sal, macarrão, cuscuz, farinha de mandioca, molho de tomate, leite, 1 dz ovos, manteiga, biscoito, papel higiênico, pasta de dente, sabonete, desodorante, detergente, sabão em pó, amaciante, água sanitária, esponja, saco de lixo' },
+    itens: 'arroz, feijão, açúcar, café, óleo, sal, macarrão, cuscuz, farinha de mandioca, molho de tomate, leite, 12 ovos, manteiga, biscoito, papel higiênico, pasta de dente, sabonete, desodorante, detergente, sabão em pó, amaciante, água sanitária, esponja, saco de lixo' },
   { id: 'feira', nome: 'Feira da semana', tipo: 'mercado', descricao: 'Frutas, verduras e temperos',
-    itens: '1 dz banana, tomate, cebola, alho, batata, cenoura, macaxeira, alface, coentro, cebolinha, limão, laranja, maçã, mamão, melancia, abacaxi, pimentão, chuchu' },
+    itens: 'banana, tomate, cebola, alho, batata, cenoura, macaxeira, alface, coentro, cebolinha, limão, laranja, maçã, mamão, melancia, abacaxi, pimentão, chuchu' },
   { id: 'cafe', nome: 'Café da manhã', tipo: 'mercado', descricao: 'Para a semana começar bem',
-    itens: 'pão, manteiga, queijo, presunto, leite, café, iogurte, requeijão, 1 dz ovos, banana, mamão, tapioca, cuscuz, achocolatado, geleia' },
+    itens: 'pão, manteiga, queijo, presunto, leite, café, iogurte, requeijão, 12 ovos, banana, mamão, tapioca, cuscuz, achocolatado, geleia' },
   { id: 'churrasco', nome: 'Churrasco', tipo: 'mercado', descricao: 'Carne, acompanhamentos e bebida',
     itens: 'picanha, linguiça, coxa de frango, pão de alho, carvão, sal grosso, farinha de mandioca, tomate, cebola, pimentão, limão, refrigerante, cerveja, gelo, copo descartável, guardanapo' },
   { id: 'farmacia', nome: 'Farmácia de casa', tipo: 'farmacia', descricao: 'O básico para ter na gaveta',

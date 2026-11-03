@@ -12,7 +12,16 @@ export function novoId() {
 }
 
 export function criarItem(nome, cat, qtd = null, un = 'un') {
-  return { id: novoId(), nome, cat, qtd, un, feito: false };
+  return semDuzia({ id: novoId(), nome, cat, qtd, un, feito: false });
+}
+
+/**
+ * O app não usa mais dúzia: o que vier em dz (lista antiga, link de outra
+ * versão, histórico) vira unidades. 1 dz → 12 un; dúzia sem número → un.
+ */
+export function semDuzia(item) {
+  if (!item || item.un !== 'dz') return item;
+  return { ...item, un: 'un', qtd: typeof item.qtd === 'number' ? Math.round(item.qtd * 12 * 100) / 100 : item.qtd ?? null };
 }
 
 /** 0.5 → "0,5"; 2 → "2". */
@@ -84,7 +93,7 @@ export const LISTA_INICIAL = [
   criarItem('Gorgonzola', 'Frios e laticínios', null, 'g'),
   criarItem('Cenoura', 'Hortifrúti', null, 'kg'),
   criarItem('Brócolis', 'Hortifrúti'),
-  criarItem('Banana', 'Hortifrúti', null, 'dz'),
+  criarItem('Banana', 'Hortifrúti', null, 'kg'),
   criarItem('Uva', 'Hortifrúti', null, 'kg'),
   criarItem('Laranja', 'Hortifrúti', null, 'kg'),
   criarItem('Maçã', 'Hortifrúti', null, 'kg'),

@@ -4,11 +4,11 @@
  */
 
 import { adivinharCategoria, categoriaCanonica } from '../src/core/categorias.js';
-import { criarItem, juntar, adicionarItens, LISTA_INICIAL, formatarQtd } from '../src/core/lista.js';
+import { criarItem, juntar, adicionarItens, LISTA_INICIAL, formatarQtd, semDuzia } from '../src/core/lista.js';
 import { paraTexto, lerTexto, lerEntrada, separarItens } from '../src/core/texto.js';
 import { procurarNoCatalogo, sugerirDoCatalogo } from '../src/core/catalogo.js';
 import { registrar, sugerir, deSempre, gradeDaCategoria, esquecer, paraRevisar } from '../src/core/historico.js';
-import { CATEGORIAS_POR_TIPO, TIPOS, CATEGORIAS } from '../src/core/categorias.js';
+import { CATEGORIAS_POR_TIPO, TIPOS, CATEGORIAS, UNIDADES } from '../src/core/categorias.js';
 import { MODELOS, modelosPara, itensDoModelo } from '../src/core/modelos.js';
 import { complementar, novosDesdeOEnvio, marcarComoEnviados, textoDoComplemento, listaDoTextoDeComplemento } from '../src/core/complemento.js';
 import { listaDoComplemento, ligar, listaEmCompra } from '../src/core/listas.js';
@@ -46,14 +46,14 @@ ok(adivinharCategoria('Coisa estranha') === 'Outros', 'desconhecido → outros')
 ok(categoriaCanonica('hortifruti') === 'Hortifrúti', 'cabeçalho sem acento vira categoria conhecida');
 
 // Texto: lista solta, como a que chega no WhatsApp
-const solta = lerTexto('Frango em cubos\n2 kg carne\nLeite - 6 cx\n3x iogurte\n500 g de muçarela\n\nBanana: 1 dz\nUva');
+const solta = lerTexto('Frango em cubos\n2 kg carne\nLeite - 6 cx\n3x iogurte\n500 g de muçarela\n\nOvos: 1 dz\nUva');
 ok(igual(resumo(solta), [
   ['Frango em cubos', 'Açougue', null, 'un'],
   ['Carne', 'Açougue', 2, 'kg'],
   ['Leite', 'Frios e laticínios', 6, 'cx'],
   ['Iogurte', 'Frios e laticínios', 3, 'un'],
   ['Queijo muçarela', 'Frios e laticínios', 500, 'g'],
-  ['Banana', 'Hortifrúti', 1, 'dz'],
+  ['Ovos', 'Frios e laticínios', 12, 'un'],
   ['Uva', 'Hortifrúti', null, 'un'],
 ]), 'lista solta com quantidades em vários formatos');
 
@@ -61,7 +61,7 @@ ok(igual(resumo(solta), [
 const ent = (t) => lerEntrada(t).map((i) => [i.nome, i.qtd, i.un, i.cat]);
 ok(igual(ent('pão, 6 leite, banana e tomate'), [
   ['Pão', null, 'un', 'Padaria'], ['Leite', 6, 'cx', 'Frios e laticínios'],
-  ['Banana', null, 'dz', 'Hortifrúti'], ['Tomate', null, 'kg', 'Hortifrúti'],
+  ['Banana', null, 'kg', 'Hortifrúti'], ['Tomate', null, 'kg', 'Hortifrúti'],
 ]), 'vários itens numa linha, com unidade do catálogo');
 ok(igual(ent('dois quilos de frango'), [['Frango', 2, 'kg', 'Açougue']]), 'número falado com unidade');
 ok(igual(ent('um quilo e meio de carne e duas caixas de leite'), [['Carne', 1.5, 'kg', 'Açougue'], ['Leite', 2, 'cx', 'Frios e laticínios']]), '"e meio" não separa, "e duas" separa');
@@ -242,7 +242,7 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   }
   ok(modelosPara('farmacia')[0].id === 'farmacia', 'listas prontas do tipo vêm primeiro');
   const ovos = itensDoModelo(MODELOS[0]).find((i) => i.nome === 'Ovos');
-  ok(ovos.qtd === 1 && ovos.un === 'dz', 'quantidade da lista pronta');
+  ok(ovos.qtd === 12 && ovos.un === 'un', 'quantidade da lista pronta (dúzia vira 12)');
 }
 
 // Complemento
@@ -251,22 +251,22 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
     { ...criarItem('Pão', 'Padaria'), feito: true, preco: 8 },
     { ...criarItem('Leite', 'Frios e laticínios', 2, 'cx'), feito: true },
     { ...criarItem('Gorgonzola', 'Frios e laticínios'), faltou: true },
-    criarItem('Ovos', 'Frios e laticínios', 1, 'dz'),
+    criarItem('Ovos', 'Frios e laticínios', 12, 'un'),
     criarItem('Café', 'Mercearia'),
   ];
-  const chegou = [criarItem('Pilha', 'Utilidades', 4), criarItem('leite', 'Frios e laticínios', 4, 'cx'), criarItem('Gorgonzola', 'Frios e laticínios'), criarItem('Ovos', 'Frios e laticínios', 2, 'dz'), criarItem('Café', 'Mercearia')];
+  const chegou = [criarItem('Pilha', 'Utilidades', 4), criarItem('leite', 'Frios e laticínios', 4, 'cx'), criarItem('Gorgonzola', 'Frios e laticínios'), criarItem('Ovos', 'Frios e laticínios', 24, 'un'), criarItem('Café', 'Mercearia')];
   const r = complementar(naRua, chegou);
   const por = (n) => r.itens.find((i) => i.nome.toLowerCase() === n.toLowerCase());
   ok(igual(r.novos, ['Pilha']) && por('Pilha').novo && !por('Pilha').feito, 'item novo entra pendente com selo');
   ok(por('Leite').qtd === 6 && !por('Leite').feito && por('Leite').obs === 'pediram mais' && por('Leite').novo, 'item já pego volta somando e com "pediram mais"');
   ok(!por('Gorgonzola').faltou && por('Gorgonzola').novo, '"não tinha" pedido de novo volta a pendente');
-  ok(por('Ovos').qtd === 2 && r.atualizados.includes('Ovos'), 'pendente só atualiza a quantidade');
+  ok(por('Ovos').qtd === 24 && r.atualizados.includes('Ovos'), 'pendente só atualiza a quantidade');
   ok(!por('Café').novo && por('Pão').feito && por('Pão').preco === 8, 'o resto não muda');
   ok(r.reabertos.length === 2 && r.itens.length === 6, 'contagem do complemento');
   ok(ordenarParaCompra(r.itens).find(([c]) => c === 'Frios e laticínios')[1][0].novo, 'novos em cima na hora da compra');
   const inteira = complementar(naRua, chegou, { reabrir: false });
   const porI = (n) => inteira.itens.find((i) => i.nome.toLowerCase() === n.toLowerCase());
-  ok(porI('Leite').feito && porI('Gorgonzola').faltou && porI('Pilha').novo && porI('Ovos').qtd === 2, 'lista inteira de novo não reabre o que já foi resolvido');
+  ok(porI('Leite').feito && porI('Gorgonzola').faltou && porI('Pilha').novo && porI('Ovos').qtd === 24, 'lista inteira de novo não reabre o que já foi resolvido');
 
   const l = { itens: [criarItem('Pão', 'Padaria')] };
   ok(novosDesdeOEnvio(l).length === 0, 'nunca enviada: nada é "novo"');
@@ -322,7 +322,7 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   const fl = lerEntrada('6 leites zero lactose, banana madura');
   ok(fl.length === 2 && fl[0].qtd === 6 && fl[0].obs === 'zero lactose' && fl[1].obs === 'madura', 'quantidade e observação juntas');
   ok(lerEntrada('Banana (maduras)')[0].obs === 'maduras', 'parênteses continuam valendo');
-  const so = adicionarItens([criarItem('Banana', 'Hortifrúti', 1, 'dz')], [{ ...criarItem('Banana', 'Hortifrúti'), obs: 'maduras' }]).itens[0];
+  const so = adicionarItens([criarItem('Banana', 'Hortifrúti', 1, 'kg')], [{ ...criarItem('Banana', 'Hortifrúti'), obs: 'maduras' }]).itens[0];
   ok(so.qtd === 1 && so.obs === 'maduras', 'item repetido sem quantidade ainda leva a observação');
 
   ok(trechoNovo('', 'frango') === 'frango', 'primeira frase');
@@ -414,7 +414,7 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   ok(um('coca').cat === 'Bebidas' && um('danone').cat === 'Frios e laticínios' && um('ypê').cat === 'Limpeza' && um('pampers').cat === 'Bebê', 'marcas comuns');
   ok(um('aipim').nome === 'Macaxeira' && um('mandioca').nome === 'Macaxeira' && um('refri').nome === 'Refrigerante', 'sinônimos');
   ok(ent('ração, areia de gato, sorvete, chiclete, papinha, caneta').join() === 'Ração|Pet|kg,Areia de gato|Pet|pct,Sorvete|Congelados|un,Chiclete|Doces e lanches|pct,Papinha|Bebê|un,Caneta|Papelaria|un', 'categorias novas');
-  ok(um('ovo caipira').un === 'dz' && um('batata frita congelada').cat === 'Congelados', 'unidades e categorias corrigidas');
+  ok(um('ovo caipira').un === 'un' && um('batata frita congelada').cat === 'Congelados', 'unidades e categorias corrigidas');
   ok(procurarNoCatalogo('vitamina c').nome === 'Vitamina C', 'catálogo continua lendo nomes com letra solta');
   ok(CATEGORIAS_POR_TIPO.mercado.includes('Congelados') && CATEGORIAS_POR_TIPO.mercado.includes('Pet'), 'grade do mercado com as categorias novas');
 }
@@ -422,6 +422,15 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
 {
   // Links antigos guardam a categoria pela posição: as novas só podem entrar no fim.
   ok(CATEGORIAS.slice(0, 13).join() === 'Açougue,Padaria,Frios e laticínios,Hortifrúti,Mercearia,Bebidas,Limpeza,Higiene,Utilidades,Outros,Farmácia,Material e ferramentas,Festa', 'categorias antigas na mesma posição');
+}
+
+{
+  ok(!UNIDADES.includes('dz'), 'dúzia saiu das unidades');
+  const d = lerEntrada('2 dúzias de ovos, 1 dz banana, uma dúzia de pão');
+  ok(d.map((i) => `${i.qtd} ${i.un}`).join() === '24 un,12 un,12 un', 'dúzia escrita ou falada vira unidades');
+  ok(semDuzia({ nome: 'Ovos', qtd: 1.5, un: 'dz' }).qtd === 18 && semDuzia({ nome: 'X', qtd: null, un: 'dz' }).un === 'un', 'item antigo em dúzia vira unidades');
+  const m = migrar({ v: 2, ativa: 'a', listas: [{ id: 'a', nome: 'M', tipo: 'mercado', itens: [{ id: '1', nome: 'Ovos', cat: 'Frios e laticínios', qtd: 2, un: 'dz', feito: false }] }] });
+  ok(m.listas[0].itens[0].qtd === 24 && m.listas[0].itens[0].un === 'un', 'lista guardada com dúzia é convertida ao abrir');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);
