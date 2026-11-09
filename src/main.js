@@ -29,6 +29,7 @@ import {
   carregar, carregarHistorico, salvarHistorico, carregarUltima,
   carregarOrcamento, salvarOrcamento, carregarListas, salvarListas, carregarCompras, salvarCompras,
   lerTudo, gravarTudo, carregarProntas, salvarProntas,
+  mudouEmOutroLugar, deixarParaOApp, pegarDoApp, esqueceEsperando, marcarAppUsado, appUsadoHaPouco,
 } from './storage.js';
 
 // ---------------------------------------------------------------- estado
@@ -1423,14 +1424,95 @@ function painelImportar(dica = '') {
   };
 }
 
-async function lerLinkDoEndereco() {
-  const hash = location.hash;
-  if (!codigoDoEndereco(hash) && !codigoDeRetorno(hash) && !codigoDeComplemento(hash)) return;
-  // Tira o código do endereço: recarregar a página não pergunta de novo.
-  history.replaceState(null, '', location.pathname + location.search);
+const temCodigo = (hash) => !!(codigoDoEndereco(hash) || codigoDeRetorno(hash) || codigoDeComplemento(hash));
+
+// O mesmo link pode chegar duas vezes (endereço e launchQueue): abre uma só.
+const jaAbertos = new Set();
+async function abrirLink(hash) {
+  if (jaAbertos.has(hash)) return;
+  jaAbertos.add(hash);
   if (!(await receber(hash, 'link'))) aviso('Esse link está incompleto');
 }
+
+async function lerLinkDoEndereco() {
+  const hash = location.hash;
+  if (!temCodigo(hash)) return;
+  // Tira o código do endereço: recarregar a página não pergunta de novo.
+  history.replaceState(null, '', location.pathname + location.search);
+  if (instalado) { esqueceEsperando(); abrirLink(hash); return; }
+  // Aberto numa aba do navegador. Quem usa o app instalado quer a lista lá.
+  if (await usaOApp()) { deixarParaOApp(hash); painelNoApp(hash); return; }
+  if (ehAndroidForaDoChrome) { painelAbrirNoChrome(hash); return; }
+  abrirLink(hash);
+}
 addEventListener('hashchange', lerLinkDoEndereco);
+
+/**
+ * O app está instalado neste celular? No Chrome do Android, o app e a aba
+ * guardam no mesmo lugar: o sinal que o app deixa ao abrir aparece aqui.
+ * getInstalledRelatedApps confirma quando o navegador sabe responder.
+ */
+async function usaOApp() {
+  if (appUsadoHaPouco()) return true;
+  try {
+    if (navigator.getInstalledRelatedApps) return (await navigator.getInstalledRelatedApps()).length > 0;
+  } catch { /* sem resposta */ }
+  return false;
+}
+
+async function resumoDoLink(hash) {
+  try {
+    if (codigoDeRetorno(hash)) return 'o retorno da compra';
+    const codigo = codigoDeComplemento(hash) || codigoDoEndereco(hash);
+    const { itens: chegaram, meta } = await decodificarLista(codigo);
+    return `${meta?.nome ? `a lista <b>${esc(meta.nome)}</b>, com ` : ''}${plural(chegaram.length, 'item', 'itens')}`;
+  } catch { return 'a lista'; }
+}
+
+/** A lista ficou esperando no app: é só abrir o NaLista pela tela inicial. */
+async function painelNoApp(hash) {
+  abrirPainel(`<h3>A lista já está no seu app</h3>
+    <p>Chegou ${await resumoDoLink(hash)}. Ela ficou esperando no <b>NaLista</b>: abra o app pelo ícone na tela inicial do celular e ela aparece lá.</p>
+    <p class="cinza">No Chrome, o menu ⋮ também pode ter a opção <b>Abrir no app</b>.</p>
+    <button class="btn primario grande" data-fechar type="button">Entendi</button>
+    <button class="btn discreto" id="naAqui" type="button">Abrir aqui no navegador</button>`);
+  $('naAqui').onclick = () => { esqueceEsperando(); fecharPainel(); abrirLink(hash); };
+}
+
+/**
+ * Navegador da Samsung (ou outro): o app foi instalado pelo Chrome, que guarda
+ * em outro lugar. O botão leva o link para o Chrome, que entrega ao app.
+ */
+async function painelAbrirNoChrome(hash) {
+  abrirPainel(`<h3>Chegou uma lista para você</h3>
+    <p>Chegou ${await resumoDoLink(hash)}. Usa o app <b>NaLista</b> instalado? Toque abaixo para mandar a lista para ele.</p>
+    <button class="btn primario grande" id="ncApp" type="button">Abrir no app NaLista</button>
+    <button class="btn discreto" id="ncAqui" type="button">Abrir aqui mesmo</button>`);
+  $('ncApp').onclick = () => {
+    const alvo = endereco + hash;
+    location.href = `intent://${endereco.replace(/^https?:\/\//, '')}${hash}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(alvo)};end`;
+  };
+  $('ncAqui').onclick = () => { fecharPainel(); abrirLink(hash); };
+}
+
+/** No app: o que a aba do navegador deixou esperando. */
+function abrirOQueEsperava() {
+  if (!instalado) return;
+  const hash = pegarDoApp();
+  if (hash) abrirLink(hash);
+}
+
+/**
+ * Link tocado com o app já aberto (launch_handler "navigate-existing"):
+ * o Chrome não recarrega a página, entrega o endereço por aqui.
+ */
+if ('launchQueue' in window) {
+  window.launchQueue.setConsumer((params) => {
+    if (!params.targetURL || !matchMedia('(display-mode: standalone)').matches) return;
+    const url = new URL(params.targetURL);
+    if (temCodigo(url.hash)) { esqueceEsperando(); abrirLink(url.hash); }
+  });
+}
 
 /**
  * Menu "Compartilhar" do Android: com o app instalado, quem recebe uma
@@ -1765,6 +1847,9 @@ let pedidoDeInstalacao = null;
  * Samsung, em vez de "Instalar", o app sugere abrir no Chrome.
  */
 const ehSamsung = /SamsungBrowser/i.test(navigator.userAgent);
+// Android fora do Chrome (Samsung, Firefox, navegador do WhatsApp/Instagram...): guarda em outro lugar que o app.
+const ehAndroidForaDoChrome = /Android/i.test(navigator.userAgent)
+  && (!/Chrome\/\d/.test(navigator.userAgent) || /SamsungBrowser|EdgA|OPR\/|Firefox|YaBrowser|UCBrowser|MiuiBrowser|HeyTap|; wv\)|FBAN|FBAV|Instagram/i.test(navigator.userAgent));
 const endereco = location.origin + location.pathname;
 function sugerirChrome() {
   let dispensou = false;
@@ -1830,5 +1915,18 @@ medirTopo();
 // ---------------------------------------------------------------- início
 montarBarra();
 desenhar();
+if (instalado) marcarAppUsado();
 lerLinkDoEndereco();
 lerCompartilhado();
+abrirOQueEsperava();
+
+/*
+ * Voltando para a tela: se outra janela gravou (a lista importada numa aba
+ * do Chrome, por exemplo), recarrega para não gravar a versão velha por cima.
+ */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (instalado) marcarAppUsado();
+  if (mudouEmOutroLugar()) { location.reload(); return; }
+  abrirOQueEsperava();
+});

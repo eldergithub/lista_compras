@@ -35,6 +35,16 @@
       "purpose": "maskable"
     }
   ],
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
+  "handle_links": "preferred",
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://eldergithub.github.io/lista_compras/manifest.webmanifest"
+    }
+  ],
   "share_target": {
     "action": "./",
     "method": "GET",

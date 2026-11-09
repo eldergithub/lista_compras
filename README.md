@@ -27,6 +27,7 @@ Marca e design system: tokens, símbolo, ícones e componentes no design system 
 - **Backup:** salva tudo num arquivo .json (compartilhável no celular) e restaura em outro aparelho.
 - **Enviar:** link com a lista dentro (WhatsApp, Telegram…), QR code ou texto.
 - **Importar:** cola um link, o texto do app ou uma lista simples. Com o app instalado no Android, dá para **compartilhar** uma mensagem direto com o app "NaLista".
+- **Link com o app instalado:** se o link abrir numa aba do Chrome, a lista fica esperando e aparece ao abrir o app pela tela inicial (com a opção de abrir ali mesmo). No navegador da Samsung, o botão **Abrir no app NaLista** manda a lista para o Chrome/app. Se o app já estava aberto, ele recarrega ao voltar para a tela e não grava a versão antiga por cima.
 - **Instalar:** no Android, o Chrome oferece "Instalar". No iPhone, Safari → Compartilhar → Adicionar à Tela de Início.
 
 A lista fica só no aparelho. O link leva a lista depois do `#`, parte do endereço que não vai para o servidor.
