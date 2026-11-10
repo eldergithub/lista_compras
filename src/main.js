@@ -103,7 +103,9 @@ painelRenomearPronta = navegavel(painelRenomearPronta);
 let antesDeDesfazer = null;
 function aviso(msg, podeDesfazer = false, desfazerOutro = null) {
   const t = $('aviso');
-  t.innerHTML = `<span>${esc(msg)}</span>${podeDesfazer ? '<button type="button" id="aDesfazer">Desfazer</button>' : ''}`;
+  const dura = podeDesfazer ? 5000 : 2200;
+  // A faixa fina embaixo vai encolhendo: mostra quanto tempo ainda dá para desfazer.
+  t.innerHTML = `<span class="aviso-texto">${esc(msg)}</span>${podeDesfazer ? '<button type="button" class="aviso-acao" id="aDesfazer">Desfazer</button>' : ''}${podeDesfazer ? `<span class="aviso-tempo" style="animation-duration:${dura}ms" aria-hidden="true"></span>` : ''}`;
   t.classList.add('mostrar');
   t.classList.toggle('com-acao', podeDesfazer);
   if (podeDesfazer && desfazerOutro) {
@@ -117,7 +119,7 @@ function aviso(msg, podeDesfazer = false, desfazerOutro = null) {
     };
   }
   clearTimeout(aviso.t);
-  aviso.t = setTimeout(() => t.classList.remove('mostrar', 'com-acao'), podeDesfazer ? 5000 : 2000);
+  aviso.t = setTimeout(() => t.classList.remove('mostrar', 'com-acao'), dura);
 }
 /** Guarda a lista antes de uma mudança, para o "Desfazer" do aviso. */
 const marcarParaDesfazer = () => { antesDeDesfazer = { lista: lista.id, itens: copiaDe(itens) }; };
@@ -281,7 +283,7 @@ function removerItem(item) {
   itens = itens.filter((x) => x !== item);
   if (ajustando === item) ajustando = null;
   guardar(); desenhar();
-  aviso(`${item.nome} removido`, true);
+  aviso(`Saiu da lista: ${item.nome}`, true);
 }
 
 // ---------------------------------------------------------------- detalhes do item
@@ -391,8 +393,9 @@ function adicionar(novos) {
   mostrarItem(novos[novos.length - 1]);
   const novosDeVerdade = novos.length - r.somados.length;
   const partes = [];
-  if (novosDeVerdade) partes.push(novos.length === 1 ? `${novos[0].nome} adicionado` : plural(novosDeVerdade, 'item adicionado', 'itens adicionados'));
-  if (r.somados.length) partes.push(`${r.somados.join(', ')} já ${r.somados.length === 1 ? 'estava' : 'estavam'} na lista: somei`);
+  // "Na lista: Manga" serve para qualquer item (sem "adicionado/adicionada").
+  if (novosDeVerdade) partes.push(novos.length === 1 ? `Na lista: ${novos[0].nome}` : `Na lista: ${plural(novosDeVerdade, 'item', 'itens')}`);
+  if (r.somados.length) partes.push(`${r.somados.join(', ')}: somei à quantidade`);
   aviso(partes.join('. '), true);
 }
 
@@ -436,12 +439,25 @@ function montarBarra() {
     aviso('Use o microfone do teclado para falar os itens');
   };
   $('nEscolher').onclick = painelEscolher;
-  // Toque nas sugestões não tira o foco da caixa (o teclado continua aberto).
+  // Toque nas sugestões e no + não tira o foco da caixa (o teclado continua aberto, a tela não pula).
   $('sobe').addEventListener('pointerdown', (e) => { if (e.target.closest('button')) e.preventDefault(); });
+  $('nEnviar').addEventListener('pointerdown', (e) => { if (document.activeElement === campo) e.preventDefault(); });
   atualizarBotoes();
 }
 
 function esconderSobe() { $('sobe').hidden = true; }
+
+/*
+ * Modo "digitando": com o teclado aberto sobra pouca tela. O menu de baixo
+ * some e o cabeçalho encolhe (ver body.digitando no CSS), e a lista fica
+ * com o espaço. Espera um instante no focusout: tocar de um campo para
+ * outro não pode fazer a tela pular.
+ */
+const abreTeclado = (el) => !!el?.matches?.('input:not([type=radio]):not([type=checkbox]):not([type=file]):not([type=range]), textarea');
+document.addEventListener('focusin', (e) => { if (abreTeclado(e.target)) document.body.classList.add('digitando'); });
+document.addEventListener('focusout', () => {
+  setTimeout(() => { if (!abreTeclado(document.activeElement)) document.body.classList.remove('digitando'); }, 120);
+});
 
 /** Acima da barra: o que vai entrar (prévia), sugestões da palavra e, com a caixa vazia, os itens de sempre. */
 function atualizarPrevia() {
@@ -568,7 +584,7 @@ function tocarNaGrade(g) {
     lembrar([item]);
     lista.compraRegistrada = false;
     guardar(); desenhar();
-    aviso(`${g.nome} adicionado`, true);
+    aviso(`Na lista: ${g.nome}`, true);
     return;
   }
   const passo = PASSO[ja.un] || 1;
@@ -813,9 +829,26 @@ function atualizarContagem() {
   if (concluida) {
     const partes = [`${plural(r.pegos, 'item pego', 'itens pegos')}`];
     if (r.faltaram) partes.push(`${r.faltaram} não tinha`);
-    if (r.comPreco) partes.push(`total ${formatarPreco(r.gasto)}`);
-    tudo.innerHTML = `Tá tudo na sacola. Boa compra<span>${partes.join(' · ')}</span><button class="btn primario grande" id="tRetorno" type="button">Enviar retorno para quem fez a lista</button>`;
+    if (r.comPreco) partes.push(formatarPreco(r.gasto));
+    // Fim da compra num cartão só: o resumo, o retorno e a escolha da próxima compra,
+    // cada uma com um toque (sem confirmação: a compra já está guardada e tem Desfazer).
+    const op = (id, ic, titulo, desc) => `<button class="fim-op" id="${id}" type="button"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg><span><b>${titulo}</b><small>${desc}</small></span></button>`;
+    tudo.innerHTML = `<div class="fim-topo">
+        <span class="fim-selo" aria-hidden="true">${MARCA}</span>
+        <div><b>Tá tudo na sacola. Boa compra!</b><span>${partes.join(' · ')}</span></div>
+      </div>
+      <button class="btn primario grande" id="tRetorno" type="button">Enviar retorno para quem fez a lista</button>
+      <h4 class="fim-sub">Próxima compra</h4>
+      <div class="fim-opcoes">
+        ${op('tMesmos', ICONE.repetir, 'Mesmos itens', `${plural(r.total, 'item volta', 'itens voltam')} desmarcados`)}
+        ${r.faltaram ? op('tFaltou', '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>', 'Só o que não tinha', `${plural(r.faltaram, 'item fica', 'itens ficam')} na lista`) : ''}
+        ${op('tVazia', '<path d="M12 5v14M5 12h14"/>', 'Lista vazia', 'Começa do zero')}
+      </div>
+      <p class="fim-nota">Esta compra já ficou guardada em <b>Compras</b>.</p>`;
     $('tRetorno').onclick = enviarRetorno;
+    $('tMesmos').onclick = () => proximaCompra('mesmos');
+    if ($('tFaltou')) $('tFaltou').onclick = () => proximaCompra('faltou');
+    $('tVazia').onclick = () => proximaCompra('vazia');
     // Compra concluída vira a "última compra", que dá para repetir depois.
     lista.ultima = novaCompra(itens);
     // Entra uma vez só nas compras anteriores, até a próxima compra começar.
@@ -847,26 +880,43 @@ async function manterTelaAcesa() {
 }
 document.addEventListener('visibilitychange', manterTelaAcesa);
 
-/** Botão do fim da lista: zera as marcas para a próxima compra (com confirmação). */
+/**
+ * Próxima compra, direto do cartão do fim (ou do menu):
+ * - mesmos: os itens ficam e voltam a ficar desmarcados, sem preço nem "não tinha";
+ * - faltou: ficam só os que não tinha;
+ * - vazia: a lista esvazia (os itens ficam em "Repetir a última compra").
+ * Tudo com Desfazer.
+ */
+function proximaCompra(modo) {
+  marcarParaDesfazer();
+  const antes = itens;
+  if (modo === 'vazia') { lista.ultima = novaCompra(antes); itens = []; }
+  else if (modo === 'faltou') itens = novaCompra(antes.filter((i) => !i.feito));
+  else itens = novaCompra(antes);
+  lista.compraRegistrada = false;
+  ajustando = null;
+  guardar(); fecharPainel(); desenhar();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  aviso(itens.length ? `Nova compra: ${plural(itens.length, 'item', 'itens')} para pegar` : 'Nova compra: lista vazia', true);
+}
+
+/** Botão do fim da lista, no meio da compra: desmarca tudo (com confirmação, porque a compra ainda não foi guardada). */
 const bLimpar = $('limpar');
 function rearmarLimpar() {
-  bLimpar.textContent = 'Começar nova compra';
-  bLimpar.hidden = !itens.some(resolvido);
+  const r = resumoDaCompra(itens);
+  bLimpar.textContent = 'Desmarcar tudo e começar de novo';
+  // Com a compra concluída, o cartão do fim já traz as opções.
+  bLimpar.hidden = !r.resolvidos || r.resolvidos === r.total;
 }
 function confirmarNovaCompra() {
   const r = resumoDaCompra(itens);
+  if (r.total && r.resolvidos === r.total) { proximaCompra('mesmos'); return; }
   confirmar({
-    titulo: 'Começar nova compra?',
-    texto: `Os ${plural(itens.length, 'item', 'itens')} de <b>${esc(lista.nome)}</b> continuam na lista. Saem só as marcas${r.comPreco ? ', os preços' : ''}${r.faltaram ? ' e os "não tinha"' : ''}.${lista.compraRegistrada ? ' Esta compra já está guardada em Compras anteriores.' : ''}`,
-    acao: 'Zerar as marcas',
+    titulo: 'Desmarcar tudo?',
+    texto: `Os ${plural(itens.length, 'item', 'itens')} de <b>${esc(lista.nome)}</b> continuam na lista e voltam a ficar para pegar${r.comPreco || r.faltaram ? `. Saem ${[r.comPreco ? 'os preços' : '', r.faltaram ? 'os "não tinha"' : ''].filter(Boolean).join(' e ')}` : ''}.`,
+    acao: 'Desmarcar tudo',
     perigo: false,
-    aoConfirmar: () => {
-      marcarParaDesfazer();
-      itens = novaCompra(itens);
-      lista.compraRegistrada = false;
-      guardar(); fecharPainel(); desenhar(); window.scrollTo({ top: 0 });
-      aviso('Pronto para a próxima compra', true);
-    },
+    aoConfirmar: () => proximaCompra('mesmos'),
   });
 }
 bLimpar.onclick = confirmarNovaCompra;
@@ -930,7 +980,7 @@ function painelMais() {
       ${opcao('mProntas', 'prontas', 'Listas prontas', prontas.length ? `${plural(prontas.length, 'sua', 'suas')} e as do app` : 'Mês, feira, churrasco, farmácia e outras')}
       ${itens.length ? opcao('mSalvarPronta', 'pronta', 'Salvar como lista pronta', 'Para montar uma igual depois') : ''}
       ${faltaNaLista > 0 ? opcao('mRepetir', 'repetir', 'Repetir a última compra', `${plural(faltaNaLista, 'item volta', 'itens voltam')} para a lista`) : ''}
-      ${itens.some(resolvido) ? opcao('mZerar', 'zerar', 'Começar nova compra', 'Tira as marcas e os preços, mantém os itens') : ''}
+      ${itens.some(resolvido) ? opcao('mZerar', 'zerar', 'Começar nova compra', 'Desmarca tudo e tira os preços, mantém os itens') : ''}
       ${itens.length ? opcao('mEsvaziar', 'esvaziar', 'Esvaziar a lista', `Tira os ${plural(itens.length, 'item', 'itens')}`, ' perigo') : ''}
     </ul>
     <h4 class="sub">App</h4>

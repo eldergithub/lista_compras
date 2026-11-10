@@ -143,11 +143,6 @@ textarea {
 .limpar[hidden] { display: none; }
 .aviso { display: flex; align-items: center; gap: 14px; width: max-content; max-width: calc(100vw - 32px); }
 .aviso.com-acao { pointer-events: auto; }
-.aviso button { font: inherit; font-weight: 700; color: var(--destaque-leve); background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-tema="claro"]) .aviso button { color: var(--destaque); }
-}
-:root[data-tema="escuro"] .aviso button { color: var(--destaque); }
 
 /* Fase 4: hora da compra */
 li.faltou .nome { color: var(--feito); text-decoration: line-through dashed; }
@@ -161,7 +156,6 @@ li.faltou .caixa { border-style: dashed; }
 .gasto b { color: var(--laranja-texto); }
 .gasto.passou, .gasto.passou b { color: var(--perigo); font-weight: 700; }
 .gasto[hidden] { display: none; }
-.tudo span { display: block; font-weight: 400; color: var(--suave); margin-top: 4px; }
 .preco-campo { font-size: 1.4rem !important; height: 56px !important; font-variant-numeric: tabular-nums; }
 
 /* Fase 5: retorno */
@@ -523,3 +517,69 @@ body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 .faixa-acoes { display: flex; gap: 8px; flex: 1 1 100%; }
 .faixa-acoes .btn { flex: 1; min-height: 44px; padding: 8px 10px; }
 .faixa-samsung .faixa-acoes { margin-right: -32px; }
+
+/* Aviso (snackbar): faixa larga embaixo, texto à esquerda, Desfazer como botão e o tempo correndo */
+:root { --aviso-bg: #1d2420; --aviso-texto: #f3f5f1; --aviso-acao: #8fdcae; --aviso-borda: transparent; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) { --aviso-bg: #2a3530; --aviso-texto: #eef3ef; --aviso-acao: #7fd3a0; --aviso-borda: #3b4842; }
+}
+:root[data-tema="escuro"] { --aviso-bg: #2a3530; --aviso-texto: #eef3ef; --aviso-acao: #7fd3a0; --aviso-borda: #3b4842; }
+.aviso {
+  left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); width: auto; max-width: 536px; margin-inline: auto;
+  transform: translateY(14px); justify-content: space-between; gap: 10px; min-height: 52px; padding: 8px 8px 8px 16px;
+  border-radius: 14px; border: 1px solid var(--aviso-borda); background: var(--aviso-bg); color: var(--aviso-texto);
+  font-weight: 600; font-size: .95rem; line-height: 1.3; box-shadow: 0 10px 30px rgba(0, 0, 0, .3); overflow: hidden;
+  transition: opacity .18s, transform .18s;
+}
+.aviso.mostrar { transform: none; }
+.aviso-texto { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 6px 0; }
+.aviso .aviso-acao {
+  flex: none; min-height: 40px; padding: 0 14px; border-radius: 10px; border: 0; background: transparent;
+  color: var(--aviso-acao); font: inherit; font-weight: 800; cursor: pointer; text-decoration: none;
+}
+.aviso .aviso-acao:active { background: rgba(127, 211, 160, .16); }
+.aviso .aviso-acao:focus-visible { outline: 2px solid var(--aviso-acao); outline-offset: 0; }
+.aviso-tempo { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--aviso-acao); opacity: .7; transform-origin: left; animation: avisoTempo linear forwards; }
+@keyframes avisoTempo { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .aviso-tempo { display: none; } }
+/* O item que acabou de entrar não fica atrás do aviso */
+li.item { scroll-margin-bottom: 96px; }
+
+/* Digitando: o teclado ocupa meia tela, então o menu de baixo sai e o cabeçalho encolhe */
+@media (pointer: coarse) {
+  body.digitando { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body.digitando .abas-baixo { display: none; }
+  body.digitando header { gap: 8px; padding-top: calc(8px + env(safe-area-inset-top, 0px)); padding-bottom: 8px; }
+  body.digitando .topo .logo, body.digitando .marca-pequena, body.digitando #gasto { display: none; }
+  body.digitando #tituloLista { font-size: 1.15rem; }
+  body.digitando #tituloLista .icone-tipo { width: 20px; height: 20px; }
+  body.digitando .barra { height: 5px; }
+  body.digitando .aviso { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+  body.digitando .sobe { padding: 8px; max-height: 38vh; }
+  body.digitando .limpar, body.digitando .tudo { display: none; }
+}
+
+/* Fim da compra */
+.tudo { text-align: left; font-weight: 400; padding: 16px; display: none; gap: 12px; border: 1px solid color-mix(in srgb, var(--destaque) 35%, transparent); }
+.tudo.mostrar { display: grid; }
+.tudo .btn { margin-top: 0; }
+.fim-topo { display: flex; align-items: center; gap: 12px; }
+.fim-topo b { display: block; font-family: var(--titulo); font-weight: 800; font-size: 1.15rem; line-height: 1.2; }
+.fim-topo span:not(.fim-selo) { display: block; margin-top: 2px; color: var(--suave); font-size: .92rem; font-variant-numeric: tabular-nums; }
+.fim-selo { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--destaque); }
+.fim-op > span { flex: 1; min-width: 0; }
+.fim-selo svg { width: 24px; height: 24px; stroke: var(--superficie); }
+.fim-sub { margin: 6px 0 -4px; font-family: var(--titulo); font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--suave); }
+.fim-opcoes { display: grid; gap: 8px; }
+.fim-op {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 58px; padding: 10px 14px; border-radius: 12px;
+  border: 1px solid var(--linha-forte); background: var(--superficie); color: var(--texto); font: inherit; text-align: left; cursor: pointer;
+}
+.fim-op:active { border-color: var(--destaque); background: var(--destaque-leve); }
+.fim-op:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
+.fim-op svg { flex: none; width: 22px; height: 22px; fill: none; stroke: var(--destaque-forte); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.fim-op b { display: block; font-weight: 700; }
+.fim-op small { display: block; color: var(--suave); font-size: .85rem; margin-top: 1px; }
+.fim-nota { margin: 0; color: var(--suave); font-size: .85rem; text-align: center; }
+.fim-nota b { color: var(--texto); }
+.limpar { margin-top: 22px; }
