@@ -10,7 +10,7 @@ import {
   criarItem, semDuzia, formatarNumero, formatarQtd, categoriasEmUso, juntar, adicionarItens, LISTA_INICIAL,
 } from './core/lista.js';
 import { paraTexto, lerTexto, lerEntrada, separarItens, lerPedaco } from './core/texto.js';
-import { lerConfigIA, salvarConfigIA, normalizarUrl, testarIA, lerListaDaFoto, lerCorredoresDaFoto, organizarDitado, acharCorredores } from './ia.js';
+import { ultimaLeitura, lerConfigIA, salvarConfigIA, normalizarUrl, testarIA, lerListaDaFoto, lerCorredoresDaFoto, organizarDitado, acharCorredores } from './ia.js';
 import { aprenderDaIA, semCorredor, corredoresParaIA, criarMercado, lerCorredores, juntarCorredores, corredorDoItem, aprender, tirarCorredor, ordenarPorCorredor, ordenarCorredores } from './core/mercados.js';
 import { montarLink, montarLinkDeComplemento, decodificarLista, codigoDoEndereco, codigoDeRetorno, codigoDeComplemento, montarLinkDeRetorno } from './core/link.js';
 import { complementar, novosDesdeOEnvio, marcarComoEnviados, textoDoComplemento, listaDoTextoDeComplemento } from './core/complemento.js';
@@ -1648,6 +1648,7 @@ function painelImportar(dica = '') {
         const novos = texto ? lerTexto(texto) : [];
         if (!novos.length) { aviso('Não achei uma lista nessa foto'); return; }
         painelRecebida(novos, 'foto', null);
+        if (ultimaLeitura) aviso(`Lido em ${ultimaLeitura.segundos} s por ${ultimaLeitura.modelo}`);
       } catch (e) {
         aviso(e.message || 'Não consegui ler a foto');
       } finally {

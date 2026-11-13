@@ -19,19 +19,23 @@
  */
 
 const ORIGENS_PADRAO = 'https://eldergithub.github.io';
-// O Omni (30B) lê letra de mão bem melhor; com o raciocínio desligado, fica rápido.
-// O 12B (mais rápido, menos preciso) e o roteador gratuito são reserva.
-const MODELOS_PADRAO = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,nvidia/nemotron-nano-12b-v2-vl:free,openrouter/free';
-const TEMPO_POR_MODELO = 30000; // modelo gratuito em fila: desiste e tenta o próximo
+// Modelos de visão gratuitos, do mais preciso para o mais leve. Os pequenos
+// (Omni, 3B ativos) inventavam itens em letra de mão; ficam só de reserva.
+const MODELOS_PADRAO = 'nvidia/nemotron-3.5-super-vl:free,thinkingmachines/inkling-2-small:free,nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,openrouter/free';
+const TEMPO_POR_MODELO = 40000; // modelo gratuito em fila: desiste e tenta o próximo
 const TAMANHO_MAXIMO = 6_000_000; // ~6 MB: a foto já chega reduzida pelo app
 
-const PROMPT_FOTO = `Você lê fotos de listas de compras (escritas à mão ou impressas), em português do Brasil.
+const PROMPT_FOTO = `Você lê fotos de listas de compras (em papel, quadro branco ou tela), escritas à mão ou impressas, em português do Brasil.
 Responda SOMENTE com os itens, um por linha, neste formato:
 - Nome — quantidade unidade (observação)
+Como ler:
+1. Leia cada linha escrita, de cima para baixo, letra por letra. Cada linha escrita vira no máximo um item (ou mais, se estiverem separados por vírgula).
+2. Letra de mão costuma ter letras malfeitas ou trocadas. Cada item é um produto de supermercado ou de casa que existe: escolha o produto real mais parecido com o que está escrito ("Varsouha" é "Vassoura", "arros" é "Arroz", "sabao em po" é "Sabão em pó").
+3. NUNCA escreva um produto que não esteja na foto. Não acrescente itens comuns que "costumam" estar em listas. Não invente quantidades: só ponha quantidade se houver número escrito.
+4. Se uma palavra estiver ilegível, escreva sua melhor leitura dela, sem trocar por outro produto qualquer.
 Regras:
 - Omita quantidade e observação quando não houver. Exemplos: "- Arroz — 5 kg", "- Leite — 6 un (integral)", "- Banana".
-- Corrija erros óbvios de escrita dos produtos ("arros" vira "Arroz", "sabao em po" vira "Sabão em pó"). Mantenha marcas.
-- Não invente itens. Ignore riscos, rabiscos, datas, preços e totais.
+- Mantenha marcas. Ignore riscos, rabiscos, pontos soltos, reflexos, datas, preços e totais.
 - Item riscado na lista já foi comprado: ignore.
 - Se a foto não tiver uma lista, responda apenas: NENHUM`;
 
