@@ -8,7 +8,8 @@
  * Não guarda fotos nem textos: recebe, repassa, devolve.
  *
  * Tarefas: lista-foto (foto de lista), corredor-foto (placas de corredor),
- * lista-texto (o que foi ditado, para separar e corrigir os itens), ping (teste).
+ * lista-texto (o que foi ditado, para separar e corrigir os itens),
+ * itens-corredores (em que corredor fica cada produto), ping (teste).
  *
  * Configuração no painel da Cloudflare (Settings → Variables and Secrets):
  *  - OPENROUTER_KEY   (Secret)  a chave sk-or-... do OpenRouter
@@ -36,8 +37,17 @@ Para cada corredor que aparece na foto, responda UMA linha neste formato:
 Nome do corredor | categorias | produtos
 - Nome: como está na placa ("Corredor 7", "Hortifrúti", "Padaria"). Se a placa tiver número, use "Corredor N".
 - Categorias: escolha só desta lista, separadas por ponto e vírgula: ${categorias.join('; ')}
-- Produtos: o que está escrito na placa, em minúsculas, separados por vírgula ("macarrão, molho de tomate, enlatados").
+- Produtos: TUDO o que está escrito na placa, em minúsculas, separado por vírgula, inclusive seções genéricas ("laticínios, iogurtes, higiene bucal, macarrão, enlatados").
 Não invente produtos que não estão na placa. Se não houver placa legível, responda apenas: NENHUM`;
+
+const PROMPT_ITENS = `Você ajuda a achar produtos num supermercado brasileiro.
+Recebe os corredores do mercado (nome e o que diz a placa) e uma lista de produtos.
+Para CADA produto, responda uma linha neste formato:
+Produto | Nome do corredor
+- Use o nome do corredor exatamente como veio na lista.
+- Pense em onde o produto costuma ficar: placa "laticínios" recebe iogurte, queijo, manteiga e leite; "higiene" recebe sabonete, pasta de dente e papel higiênico; "mercearia" recebe arroz, feijão, óleo e café.
+- Se nenhum corredor servir, use: Produto | ?
+Não escreva mais nada.`;
 
 const PROMPT_TEXTO = `Você recebe o que uma pessoa ditou para a lista de compras (português do Brasil), já convertido em texto pelo celular, com erros de reconhecimento de voz.
 Responda SOMENTE com os itens, um por linha, neste formato:
@@ -87,6 +97,12 @@ export default {
         .filter((c) => typeof c === 'string' && c.length <= 40).slice(0, 30);
       if (!categorias.length) return responder({ erro: 'Pedido inválido.' }, 400);
       mensagens = [{ role: 'system', content: PROMPT_CORREDOR(categorias) }, { role: 'user', content: comImagem('Leia as placas de corredor desta foto.') }];
+    } else if (corpo?.tarefa === 'itens-corredores' && Array.isArray(corpo.corredores) && Array.isArray(corpo.itens)) {
+      const curto = (v, n) => String(v ?? '').replace(/[\r\n|]+/g, ' ').slice(0, n).trim();
+      const corredores = corpo.corredores.slice(0, 40).map((c) => `- ${curto(c?.nome, 40)}: ${curto(c?.placa, 300)}`).filter((l) => l.length > 3);
+      const itens = corpo.itens.slice(0, 150).map((i) => curto(i, 60)).filter(Boolean);
+      if (!corredores.length || !itens.length) return responder({ erro: 'Pedido inválido.' }, 400);
+      mensagens = [{ role: 'system', content: PROMPT_ITENS }, { role: 'user', content: `Corredores:\n${corredores.join('\n')}\n\nProdutos:\n${itens.join('\n')}` }];
     } else if (corpo?.tarefa === 'lista-texto' && typeof corpo.texto === 'string' && corpo.texto.trim() && corpo.texto.length <= 4000) {
       mensagens = [{ role: 'system', content: PROMPT_TEXTO }, { role: 'user', content: corpo.texto }];
     } else {

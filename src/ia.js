@@ -86,3 +86,9 @@ export async function organizarDitado(cfg, texto) {
   const { texto: saida } = await chamar(cfg, { tarefa: 'lista-texto', texto: String(texto).slice(0, 4000) }, 60000);
   return /^\s*NENHUM\s*$/i.test(saida || '') ? '' : (saida || '');
 }
+
+/** Em que corredor fica cada produto: uma linha "Produto | Corredor" (ou "?" quando não sabe). */
+export async function acharCorredores(cfg, corredores, itens) {
+  const { texto } = await chamar(cfg, { tarefa: 'itens-corredores', corredores, itens }, 60000);
+  return texto || '';
+}

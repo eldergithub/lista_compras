@@ -26,7 +26,7 @@ import { codificar, decodificar, montarLink, codigoDoEndereco } from '../src/cor
 import { trechoNovo, juntarOuvidos, textoDaSessao, limparFala, separarPendente } from '../src/core/fala.js';
 import { alternarObs, temObs, sugestoesDeObs } from '../src/core/observacoes.js';
 
-import { criarMercado, lerCorredores, juntarCorredores, corredorDoItem, aprender, tirarCorredor, ordenarPorCorredor, SEM_CORREDOR, normalizar } from '../src/core/mercados.js';
+import { aprenderDaIA, semCorredor, corredoresParaIA, criarMercado, lerCorredores, juntarCorredores, corredorDoItem, aprender, tirarCorredor, ordenarPorCorredor, SEM_CORREDOR, normalizar } from '../src/core/mercados.js';
 import { criarPronta, guardarPronta, existePronta, apagarPronta, renomearPronta, prontasPara, itensDaPronta, marcarUso } from '../src/core/prontas.js';
 
 let passou = 0, falhou = 0;
@@ -462,6 +462,13 @@ NENHUM | |`, cats);
   m = tirarCorredor(m, c12.id);
   ok(m.corredores.length === 1 && !Object.keys(m.aprendidos).length, 'tirar corredor esquece o que foi aprendido nele');
   ok(normalizar('  Sabão em PÓ! ') === 'sabao em po', 'normaliza nomes');
+  let mm = criarMercado('X');
+  mm.corredores = lerCorredores('Corredor 4 | Frios e laticínios | laticínios, iogurtes\nCorredor 9 | Higiene | higiene', CATEGORIAS);
+  const sem = semCorredor(mm, [criarItem('Picanha', 'Açougue'), criarItem('Sabonete', 'Higiene')]);
+  ok(sem.length === 1 && sem[0].nome === 'Picanha', 'separa os itens sem corredor');
+  ok(corredoresParaIA(mm)[0].placa.includes('laticínios'), 'manda o que a placa diz para a IA');
+  const r = aprenderDaIA(mm, '- Picanha | ?\nRequeijão | corredor 4\nInventado | Corredor 4\nSabonete | Corredor 99', ['Picanha', 'Requeijão', 'Sabonete']);
+  ok(r.achados === 1 && corredorDoItem(r.mercado, criarItem('requeijao', 'Outros')).nome === 'Corredor 4', 'aprende só item pedido em corredor que existe');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);
