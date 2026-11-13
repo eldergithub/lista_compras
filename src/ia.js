@@ -52,10 +52,10 @@ async function chamar(cfg, corpo, tempo = 90000) {
 export const testarIA = (cfg) => chamar(cfg, { tarefa: 'ping' }, 20000);
 
 /**
- * Reduz a foto antes de mandar: lado maior com até 1600 px (ainda dá para ler letra
+ * Reduz a foto antes de mandar: lado maior com até 1280 px (ainda dá para ler letra
  * de mão) em JPEG. Fica mais rápido, gasta menos dados e cabe no limite do porteiro.
  */
-export async function prepararFoto(arquivo, lado = 1600) {
+export async function prepararFoto(arquivo, lado = 1280) {
   const img = await createImageBitmap(arquivo);
   const escala = Math.min(1, lado / Math.max(img.width, img.height));
   const w = Math.round(img.width * escala);
@@ -64,7 +64,7 @@ export async function prepararFoto(arquivo, lado = 1600) {
   tela.width = w; tela.height = h;
   tela.getContext('2d').drawImage(img, 0, 0, w, h);
   img.close?.();
-  return tela.toDataURL('image/jpeg', 0.85);
+  return tela.toDataURL('image/jpeg', 0.8);
 }
 
 /** Lê uma foto de lista: devolve o texto, um item por linha (ou '' se não achou lista). */

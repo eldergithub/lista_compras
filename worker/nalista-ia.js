@@ -19,7 +19,9 @@
  */
 
 const ORIGENS_PADRAO = 'https://eldergithub.github.io';
-const MODELOS_PADRAO = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,openrouter/free';
+// Primeiro um modelo direto de leitura de documentos (rápido); os outros são reserva.
+const MODELOS_PADRAO = 'nvidia/nemotron-nano-12b-v2-vl:free,nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,openrouter/free';
+const TEMPO_POR_MODELO = 30000; // modelo gratuito em fila: desiste e tenta o próximo
 const TAMANHO_MAXIMO = 6_000_000; // ~6 MB: a foto já chega reduzida pelo app
 
 const PROMPT_FOTO = `Você lê fotos de listas de compras (escritas à mão ou impressas), em português do Brasil.
@@ -114,10 +116,14 @@ export default {
     let ultimoErro = 'Nenhum modelo gratuito configurado.';
 
     // Tenta os modelos em ordem: se um estiver fora do ar ou lotado, vai para o próximo.
-    for (const modelo of modelos) {
+    const inicio = Date.now();
+    const perguntar = async (modelo, semRaciocinio) => {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), TEMPO_POR_MODELO);
       try {
-        const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        return await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
+          signal: ctl.signal,
           headers: {
             Authorization: `Bearer ${env.OPENROUTER_KEY}`,
             'Content-Type': 'application/json',
@@ -127,19 +133,30 @@ export default {
           body: JSON.stringify({
             model: modelo,
             temperature: 0.1,
-            max_tokens: 2000,
+            max_tokens: 1500,
+            // Ler uma lista não precisa de "pensar": sem raciocínio, a resposta vem muito mais rápido.
+            ...(semRaciocinio ? { reasoning: { enabled: false } } : {}),
             messages: mensagens,
           }),
         });
+      } finally {
+        clearTimeout(t);
+      }
+    };
+    for (const modelo of modelos) {
+      try {
+        let r = await perguntar(modelo, true);
+        // Modelo que não aceita desligar o raciocínio: tenta de novo sem o pedido.
+        if (r.status === 400) r = await perguntar(modelo, false);
         const dados = await r.json().catch(() => ({}));
         if (r.status === 429) { ultimoErro = 'Limite gratuito do dia atingido. Tente mais tarde.'; continue; }
         if (!r.ok) { ultimoErro = dados?.error?.message || `Erro ${r.status} no modelo.`; continue; }
         let texto = String(dados?.choices?.[0]?.message?.content || '');
         texto = texto.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```[a-z]*\n?|```/gi, '').trim();
         if (!texto) { ultimoErro = 'O modelo não respondeu.'; continue; }
-        return responder({ texto, modelo: dados.model || modelo });
-      } catch {
-        ultimoErro = 'Não consegui falar com o OpenRouter.';
+        return responder({ texto, modelo: dados.model || modelo, ms: Date.now() - inicio });
+      } catch (e) {
+        ultimoErro = e?.name === 'AbortError' ? 'Os modelos gratuitos estão demorando demais agora. Tente de novo.' : 'Não consegui falar com o OpenRouter.';
       }
     }
     return responder({ erro: ultimoErro }, 502);

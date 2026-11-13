@@ -1637,6 +1637,7 @@ function painelImportar(dica = '') {
       bt.disabled = true;
       bt.classList.add('lendo');
       bt.querySelector('span').textContent = 'Lendo a foto…';
+      const paciencia = setTimeout(() => { if (bt.isConnected) bt.querySelector('span').textContent = 'Ainda lendo… a IA gratuita às vezes demora'; }, 12000);
       try {
         const texto = await lerListaDaFoto(lerConfigIA(), arquivo);
         const novos = texto ? lerTexto(texto) : [];
@@ -1645,6 +1646,7 @@ function painelImportar(dica = '') {
       } catch (e) {
         aviso(e.message || 'Não consegui ler a foto');
       } finally {
+        clearTimeout(paciencia);
         if (bt.isConnected) { bt.disabled = false; bt.classList.remove('lendo'); bt.querySelector('span').textContent = 'Ler de uma foto'; }
       }
     };
