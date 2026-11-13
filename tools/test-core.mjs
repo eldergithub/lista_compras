@@ -26,6 +26,7 @@ import { codificar, decodificar, montarLink, codigoDoEndereco } from '../src/cor
 import { trechoNovo, juntarOuvidos, textoDaSessao, limparFala, separarPendente } from '../src/core/fala.js';
 import { alternarObs, temObs, sugestoesDeObs } from '../src/core/observacoes.js';
 
+import { criarMercado, lerCorredores, juntarCorredores, corredorDoItem, aprender, tirarCorredor, ordenarPorCorredor, SEM_CORREDOR, normalizar } from '../src/core/mercados.js';
 import { criarPronta, guardarPronta, existePronta, apagarPronta, renomearPronta, prontasPara, itensDaPronta, marcarUso } from '../src/core/prontas.js';
 
 let passou = 0, falhou = 0;
@@ -431,6 +432,36 @@ ok(deSempre(h, [criarItem('Leite', 'x')]).length === 0, 'itens de sempre ignoram
   ok(semDuzia({ nome: 'Ovos', qtd: 1.5, un: 'dz' }).qtd === 18 && semDuzia({ nome: 'X', qtd: null, un: 'dz' }).un === 'un', 'item antigo em dúzia vira unidades');
   const m = migrar({ v: 2, ativa: 'a', listas: [{ id: 'a', nome: 'M', tipo: 'mercado', itens: [{ id: '1', nome: 'Ovos', cat: 'Frios e laticínios', qtd: 2, un: 'dz', feito: false }] }] });
   ok(m.listas[0].itens[0].qtd === 24 && m.listas[0].itens[0].un === 'un', 'lista guardada com dúzia é convertida ao abrir');
+}
+
+// ---------------------------------------------------------------- mercados e corredores
+{
+  const cats = CATEGORIAS;
+  const lidos = lerCorredores(`- Corredor 12 | Limpeza | sabão em pó, amaciante
+Corredor 7 | Mercearia; Doces e lanches; Inventada | macarrão, molho de tomate, molho
+texto solto sem barra
+NENHUM | |`, cats);
+  ok(lidos.length === 2, 'lê só as linhas de corredor');
+  ok(igual(lidos[1].cats, ['Mercearia', 'Doces e lanches']), 'categoria que não é do app fica de fora');
+  let m = criarMercado('Atacadão');
+  m.corredores = juntarCorredores([], lidos);
+  ok(m.corredores.map((c) => c.nome).join() === 'Corredor 7,Corredor 12', 'corredores na ordem de número');
+  m.corredores = juntarCorredores(m.corredores, lerCorredores('Corredor 7 | Mercearia | extrato de tomate', cats));
+  ok(m.corredores.length === 2 && m.corredores[0].termos.includes('extrato de tomate'), 'mesmo corredor de outra foto soma os produtos');
+  const c7 = m.corredores[0], c12 = m.corredores[1];
+  ok(corredorDoItem(m, criarItem('Molho de tomate', 'Mercearia')) === c7, 'acha pelo produto escrito na placa');
+  ok(corredorDoItem(m, criarItem('Sabão em pó Omo', 'Limpeza')) === c12, 'acha com marca e sem acento');
+  ok(corredorDoItem(m, criarItem('Biscoitos', 'Doces e lanches')) === c7, 'sem produto na placa, vai pela categoria');
+  ok(corredorDoItem(m, criarItem('Picanha', 'Açougue')) === null, 'sem pista, fica sem corredor');
+  m = aprender(m, 'Picanha', c12.id);
+  ok(corredorDoItem(m, criarItem('picanha', 'Açougue')) === c12, 'o que a pessoa ensinou vale mais');
+  const itens = [criarItem('Picanha', 'Açougue'), criarItem('Macarrão', 'Mercearia'), criarItem('Banana', 'Hortifrúti')];
+  itens[1].feito = true;
+  const grupos = ordenarPorCorredor(itens, m);
+  ok(igual(grupos.map((g) => g[0]), ['Corredor 12', SEM_CORREDOR, 'Corredor 7']), 'corredor resolvido vai para o fim; sem corredor depois dos pendentes');
+  m = tirarCorredor(m, c12.id);
+  ok(m.corredores.length === 1 && !Object.keys(m.aprendidos).length, 'tirar corredor esquece o que foi aprendido nele');
+  ok(normalizar('  Sabão em PÓ! ') === 'sabao em po', 'normaliza nomes');
 }
 
 console.log(`\n${passou} verificações passaram, ${falhou} falharam.`);

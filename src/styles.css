@@ -592,3 +592,28 @@ li.item { scroll-margin-bottom: 96px; }
 .ia-foto .btn.lendo svg { animation: iaPulsa 1s ease-in-out infinite alternate; }
 @keyframes iaPulsa { from { opacity: .35; } to { opacity: 1; } }
 .ia-nota { margin: 0; font-size: .85rem; }
+
+/* Supermercados e corredores */
+.faixa-mercado {
+  display: flex; align-items: center; gap: 10px; width: 100%; margin: 4px 0 6px; padding: 10px 14px; min-height: 48px;
+  border: 1px solid var(--linha-forte); border-radius: 12px; background: var(--superficie); color: var(--texto); font: inherit; font-size: .9rem; text-align: left; cursor: pointer;
+}
+.faixa-mercado .icone-op { flex: none; width: 22px; height: 22px; }
+.faixa-mercado span { flex: 1; min-width: 0; }
+.faixa-mercado small { color: var(--destaque-forte); font-weight: 700; }
+.corredores { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 40vh; overflow-y: auto; }
+.corredores button {
+  display: block; width: 100%; padding: 10px 14px; min-height: 52px; border: 1px solid var(--linha-forte); border-radius: 12px;
+  background: var(--superficie); color: var(--texto); font: inherit; text-align: left; cursor: pointer;
+}
+.corredores b { display: block; }
+.corredores small { display: block; color: var(--suave); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ouvidos li.fora .nome { opacity: .45; text-decoration: line-through; }
+.opcao.atual { border-color: var(--destaque); background: var(--destaque-leve); }
+
+/* Botão de IA (ditado) */
+.ia-bt { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ia-bt svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.ia-bt[hidden] { display: none; }
+.ia-bt.lendo svg { animation: iaPulsa 1s ease-in-out infinite alternate; }
+.ia-bt.feito { border-color: var(--destaque); color: var(--destaque-forte); }

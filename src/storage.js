@@ -94,6 +94,10 @@ export const salvarListas = (estado) => gravar(LISTAS, estado);
 export const carregarCompras = () => { const v = ler(COMPRAS, []); return Array.isArray(v) ? v : []; };
 export const salvarCompras = (c) => gravar(COMPRAS, c);
 
+const MERCADOS = 'nalista-mercados-v1';
+export const carregarMercados = () => { const v = ler(MERCADOS, []); return Array.isArray(v) ? v : []; };
+export const salvarMercados = (m) => gravar(MERCADOS, m);
+
 const PRONTAS = 'nalista-prontas-v1';
 export const carregarProntas = () => { const v = ler(PRONTAS, []); return Array.isArray(v) ? v : []; };
 export const salvarProntas = (p) => gravar(PRONTAS, p);
@@ -103,6 +107,7 @@ export function lerTudo() {
   return {
     listas: carregarListas(), historico: carregarHistorico(), ultima: carregarUltima(),
     compras: carregarCompras(), orcamento: carregarOrcamento(), prontas: carregarProntas(),
+    mercados: carregarMercados(),
   };
 }
 export function gravarTudo(d) {
@@ -112,4 +117,5 @@ export function gravarTudo(d) {
   salvarCompras(Array.isArray(d.compras) ? d.compras : []);
   salvarOrcamento(typeof d.orcamento === 'number' ? d.orcamento : null);
   salvarProntas(Array.isArray(d.prontas) ? d.prontas : []);
+  salvarMercados(Array.isArray(d.mercados) ? d.mercados : []);
 }
