@@ -128,3 +128,26 @@ export function ordenarPorCorredor(itens, mercado) {
   });
   return [...lista.filter((g) => g[3] > 0), ...lista.filter((g) => g[3] === 0)].map(([n, l, id]) => [n, l, id]);
 }
+
+/** O que vai para a IA sobre cada corredor: nome e o que a placa diz (categorias e produtos). */
+export const corredoresParaIA = (mercado) => mercado.corredores.map((c) => ({ nome: c.nome, placa: [...c.cats, ...c.termos].join(', ') }));
+
+/** Itens que o mercado ainda não sabe onde ficam. */
+export const semCorredor = (mercado, itens) => itens.filter((i) => !corredorDoItem(mercado, i));
+
+/**
+ * Lê a resposta "Produto | Corredor" e ensina ao mercado onde cada item fica.
+ * Só vale para os itens pedidos e corredores que existem. Devolve { mercado, achados }.
+ */
+export function aprenderDaIA(mercado, texto, nomes) {
+  const porNome = new Map(nomes.map((n) => [normalizar(n), n]));
+  const porCorredor = new Map(mercado.corredores.map((c) => [normalizar(c.nome), c.id]));
+  let m = mercado, achados = 0;
+  for (const bruta of String(texto || '').split(/\r?\n/)) {
+    const [produto, corredor] = bruta.replace(/^[-•*\s]+/, '').split('|').map((x) => (x || '').trim());
+    const nome = porNome.get(normalizar(produto));
+    const id = porCorredor.get(normalizar(corredor));
+    if (nome && id) { m = aprender(m, nome, id); achados++; porNome.delete(normalizar(produto)); }
+  }
+  return { mercado: m, achados };
+}

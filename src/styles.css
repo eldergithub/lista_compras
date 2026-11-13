@@ -617,3 +617,23 @@ li.item { scroll-margin-bottom: 96px; }
 .ia-bt[hidden] { display: none; }
 .ia-bt.lendo svg { animation: iaPulsa 1s ease-in-out infinite alternate; }
 .ia-bt.feito { border-color: var(--destaque); color: var(--destaque-forte); }
+
+.dica-corredor { margin: 8px 0 0; }
+.dica-corredor .btn { width: 100%; }
+.dica-corredor p { margin: 0; font-size: .88rem; }
+
+/* Onde estou comprando: chips no topo da lista */
+.mercados-barra { margin: 2px 0 8px; display: grid; gap: 8px; }
+.mercados-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px; margin: 0 -2px; }
+.mercados-chips::-webkit-scrollbar { display: none; }
+.chip-mercado {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 99px;
+  border: 1px solid var(--linha-forte); background: var(--superficie); color: var(--texto); font: inherit; font-size: .92rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.chip-mercado .icone-op { width: 18px; height: 18px; }
+.chip-mercado[aria-checked="true"] { background: var(--destaque); border-color: var(--destaque); color: var(--superficie); }
+.chip-mercado[aria-checked="true"] .icone-op { stroke: currentColor; }
+.chip-mercado.mais { width: 40px; padding: 0; justify-content: center; font-size: 1.3rem; font-weight: 400; color: var(--suave); }
+.chip-mercado:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
+.aviso-corredores { text-align: left; padding: 10px 14px; border-radius: 12px; border: 1px dashed var(--linha-forte); background: transparent; color: var(--suave); font: inherit; font-size: .88rem; cursor: pointer; }
+.aviso-corredores b { color: var(--destaque-forte); }

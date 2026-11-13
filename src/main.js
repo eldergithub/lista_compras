@@ -10,8 +10,8 @@ import {
   criarItem, semDuzia, formatarNumero, formatarQtd, categoriasEmUso, juntar, adicionarItens, LISTA_INICIAL,
 } from './core/lista.js';
 import { paraTexto, lerTexto, lerEntrada, separarItens, lerPedaco } from './core/texto.js';
-import { lerConfigIA, salvarConfigIA, normalizarUrl, testarIA, lerListaDaFoto, lerCorredoresDaFoto, organizarDitado } from './ia.js';
-import { criarMercado, lerCorredores, juntarCorredores, corredorDoItem, aprender, tirarCorredor, ordenarPorCorredor, ordenarCorredores } from './core/mercados.js';
+import { lerConfigIA, salvarConfigIA, normalizarUrl, testarIA, lerListaDaFoto, lerCorredoresDaFoto, organizarDitado, acharCorredores } from './ia.js';
+import { aprenderDaIA, semCorredor, corredoresParaIA, criarMercado, lerCorredores, juntarCorredores, corredorDoItem, aprender, tirarCorredor, ordenarPorCorredor, ordenarCorredores } from './core/mercados.js';
 import { montarLink, montarLinkDeComplemento, decodificarLista, codigoDoEndereco, codigoDeRetorno, codigoDeComplemento, montarLinkDeRetorno } from './core/link.js';
 import { complementar, novosDesdeOEnvio, marcarComoEnviados, textoDoComplemento, listaDoTextoDeComplemento } from './core/complemento.js';
 import { criarLista, migrar, listaAtiva, nomeLivre, listasPorUso, listaDoComplemento, ligar, listaEmCompra } from './core/listas.js';
@@ -54,6 +54,64 @@ function guardarMercado(m) {
   mercados = mercados.some((x) => x.id === m.id) ? mercados.map((x) => (x.id === m.id ? m : x)) : [...mercados, m];
   salvarMercados(mercados);
 }
+
+/*
+ * A placa diz "Laticínios"; o item é "Iogurte". Quando a lista está num
+ * mercado e algum item não tem corredor, a IA liga os produtos às placas
+ * (uma chamada para todos) e o resultado fica aprendido no mercado: cada
+ * item só é perguntado uma vez. O que a pessoa escolher à mão depois vale mais.
+ */
+const jaPerguntados = new Set();
+let descobrindo = false;
+async function descobrirCorredores({ insistir = false } = {}) {
+  const m = mercadoDaLista();
+  const cfg = lerConfigIA();
+  if (!m || !m.corredores.length || !cfg || descobrindo) return;
+  const chave = (i) => `${m.id}|${i.nome.toLowerCase()}`;
+  const faltam = semCorredor(m, itens).filter((i) => insistir || !jaPerguntados.has(chave(i)));
+  if (!faltam.length) { if (insistir) aviso('Todos os itens já têm corredor'); return; }
+  if (!insistir && navigator.onLine === false) return;
+  descobrindo = true;
+  faltam.forEach((i) => jaPerguntados.add(chave(i)));
+  desenhar();
+  try {
+    const nomes = [...new Set(faltam.map((i) => i.nome))];
+    const texto = await acharCorredores(cfg, corredoresParaIA(m), nomes);
+    const atual = mercados.find((x) => x.id === m.id);
+    if (!atual) return;
+    const { mercado, achados } = aprenderDaIA(atual, texto, nomes);
+    guardarMercado(mercado);
+    const sobram = nomes.length - achados;
+    aviso(achados ? `A IA achou o corredor de ${plural(achados, 'item', 'itens')}${sobram ? `; ${sobram} sem palpite` : ''}` : 'A IA não soube onde ficam esses itens');
+  } catch (e) {
+    if (insistir) aviso(e.message || 'A IA não respondeu');
+  } finally {
+    descobrindo = false;
+    desenhar();
+  }
+}
+/**
+ * Trocar de mercado no meio da compra: o que já foi pego continua pego.
+ * O que "não tinha" no mercado anterior volta a ficar para pegar, porque é
+ * justamente o que a pessoa vai procurar no próximo (com Desfazer).
+ */
+function trocarMercado(id) {
+  const antes = lista.mercadoId || null;
+  if (antes === (id || null)) return;
+  const naoTinha = id ? itens.filter((i) => i.faltou && !i.feito) : [];
+  if (naoTinha.length) {
+    marcarParaDesfazer();
+    naoTinha.forEach((i) => { i.faltou = false; });
+  }
+  if (id) lista.mercadoId = id; else delete lista.mercadoId;
+  guardar(); desenhar();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  const m = mercadoDaLista();
+  if (naoTinha.length) aviso(`${m.nome}: ${plural(naoTinha.length, 'item que não tinha voltou', 'itens que não tinha voltaram')} para pegar`, true);
+  else aviso(m ? `Comprando em ${m.nome}` : 'Lista por categoria');
+  agendarDescoberta();
+}
+const agendarDescoberta = () => { clearTimeout(agendarDescoberta.t); agendarDescoberta.t = setTimeout(() => descobrirCorredores(), 1500); };
 function guardar() {
   lista.itens = itens;
   lista.atualizada = Date.now();
@@ -163,18 +221,39 @@ function desenhar() {
   }
   // Lista ligada a um supermercado: na ordem dos corredores dele. Senão, por categoria.
   const mercado = mercadoDaLista();
-  if (mercado && itens.length) {
-    const faixa = document.createElement('button');
-    faixa.type = 'button';
-    faixa.className = 'faixa-mercado';
-    faixa.innerHTML = `${icone('mercado')}<span>Na ordem dos corredores de <b>${esc(mercado.nome)}</b></span><small>trocar</small>`;
-    faixa.onclick = () => painelEscolherMercado();
-    quadro.appendChild(faixa);
+  // Onde estou comprando agora: um toque troca (dá para comprar uma parte num mercado e o resto em outro).
+  if (mercados.length && itens.length) {
+    const barra = document.createElement('div');
+    barra.className = 'mercados-barra';
+    barra.innerHTML = `<div class="mercados-chips" role="radiogroup" aria-label="Onde está comprando">
+        <button type="button" role="radio" class="chip-mercado" aria-checked="${!mercado}" data-ir="">Por categoria</button>
+        ${mercados.map((m) => `<button type="button" role="radio" class="chip-mercado" aria-checked="${mercado?.id === m.id}" data-ir="${m.id}">${icone('mercado')}${esc(m.nome)}</button>`).join('')}
+        <button type="button" class="chip-mercado mais" data-novo aria-label="Cadastrar ou editar mercados">+</button>
+      </div>
+      ${mercado && !mercado.corredores.length ? `<button type="button" class="aviso-corredores" data-placas>${esc(mercado.nome)} ainda não tem corredores. <b>${lerConfigIA() ? 'Fotografar as placas' : 'Cadastrar corredores'}</b></button>` : ''}`;
+    barra.querySelectorAll('[data-ir]').forEach((b) => { b.onclick = () => trocarMercado(b.dataset.ir || null); });
+    barra.querySelector('[data-novo]').onclick = () => painelMercados();
+    if (barra.querySelector('[data-placas]')) barra.querySelector('[data-placas]').onclick = () => painelMercado(mercado.id);
+    quadro.appendChild(barra);
+    // O mercado escolhido fica à vista mesmo com muitos chips.
+    requestAnimationFrame(() => { const sel = barra.querySelector('[aria-checked="true"]'); if (sel) barra.firstElementChild.scrollLeft = sel.offsetLeft - 40; });
   }
   const grupos = mercado && mercado.corredores.length ? ordenarPorCorredor(itens, mercado) : ordenarParaCompra(itens);
-  for (const [cat, doGrupo] of grupos) {
+  for (const [cat, doGrupo, corredorId] of grupos) {
     const sec = document.createElement('section');
     sec.innerHTML = `<h2><span>${esc(cat)}</span><span>${doGrupo.filter(resolvido).length}/${doGrupo.length}</span></h2>`;
+    // Itens sem corredor: a IA tenta ligar às placas; sem IA, a dica de ensinar à mão.
+    if (mercado && corredorId === null && mercado.corredores.length) {
+      const dica = document.createElement('div');
+      dica.className = 'dica-corredor';
+      if (lerConfigIA()) {
+        dica.innerHTML = `<button class="btn ia-bt${descobrindo ? ' lendo' : ''}" type="button" ${descobrindo ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg><span>${descobrindo ? 'Procurando os corredores…' : 'Descobrir os corredores com IA'}</span></button>`;
+        dica.querySelector('button').onclick = () => descobrirCorredores({ insistir: true });
+      } else {
+        dica.innerHTML = '<p class="cinza">Toque no item e escolha o corredor: o app lembra nas próximas compras.</p>';
+      }
+      sec.appendChild(dica);
+    }
     const ul = document.createElement('ul');
     for (const item of doGrupo) ul.appendChild(linhaItem(item));
     sec.appendChild(ul);
@@ -426,6 +505,7 @@ function adicionar(novos) {
   if (novosDeVerdade) partes.push(novos.length === 1 ? `Na lista: ${novos[0].nome}` : `Na lista: ${plural(novosDeVerdade, 'item', 'itens')}`);
   if (r.somados.length) partes.push(`${r.somados.join(', ')}: somei à quantidade`);
   aviso(partes.join('. '), true);
+  agendarDescoberta();
 }
 
 /** Rola até o item e faz ele piscar: quem adicionou vê onde ele foi parar. */
@@ -1640,7 +1720,7 @@ function painelMercado(id) {
     </div>` : '<p class="cinza ia-nota">Com a IA ligada (Ajustes → IA), dá para ler as placas por foto. Sem ela, escreva os corredores à mão.</p>'}
     ${m.corredores.length ? `<ul class="corredores">${m.corredores.map((c) => `<li><button type="button" data-corredor="${c.id}"><b>${esc(c.nome)}</b><small>${esc([...c.cats, ...c.termos].join(', ') || 'Toque para dizer o que tem aqui')}</small></button></li>`).join('')}</ul>` : ''}
     <button class="btn" id="mcNovo" type="button">Adicionar corredor à mão</button>
-    ${lista.mercadoId !== m.id ? `<button class="btn" id="mcUsar" type="button">Usar na lista ${esc(lista.nome)}</button>` : ''}
+    ${lista.mercadoId !== m.id ? '<button class="btn" id="mcUsar" type="button">Estou comprando aqui agora</button>' : ''}
     <div class="fileira">
       <button class="btn" id="mcRenomear" type="button">Renomear</button>
       <button class="btn perigo" id="mcApagar" type="button">Apagar mercado</button>
@@ -1648,7 +1728,7 @@ function painelMercado(id) {
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
   painel.querySelectorAll('[data-corredor]').forEach((b) => { b.onclick = () => painelCorredor(m.id, b.dataset.corredor); });
   $('mcNovo').onclick = () => painelCorredor(m.id, null);
-  if ($('mcUsar')) $('mcUsar').onclick = () => { lista.mercadoId = m.id; guardar(); fecharPainel(); desenhar(); aviso(`${lista.nome} na ordem de ${m.nome}`); };
+  if ($('mcUsar')) $('mcUsar').onclick = () => { fecharPainel(); trocarMercado(m.id); };
   $('mcRenomear').onclick = () => {
     const nome = prompt('Novo nome do mercado', m.nome);
     if (nome && nome.trim()) { guardarMercado({ ...m, nome: nome.trim().slice(0, 60) }); painelMercado(m.id); desenhar(); }
@@ -1713,6 +1793,9 @@ function painelConferirCorredores(id, lidos) {
     desenhar();
     voltarPainel();
     aviso(`${plural(ficam.length, 'corredor guardado', 'corredores guardados')} em ${atual.nome}`);
+    // Placas novas podem resolver itens que antes não tinham corredor.
+    jaPerguntados.clear();
+    agendarDescoberta();
   };
 }
 
@@ -1767,12 +1850,7 @@ function painelEscolherMercado() {
     <button class="btn" id="emCadastrar" type="button">${mercados.length ? 'Cadastrar outro mercado' : 'Cadastrar um mercado'}</button>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
   painel.querySelectorAll('[data-mercado]').forEach((b) => {
-    b.onclick = () => {
-      if (b.dataset.mercado) lista.mercadoId = b.dataset.mercado; else delete lista.mercadoId;
-      guardar(); fecharPainel(); desenhar();
-      const m = mercadoDaLista();
-      aviso(m ? (m.corredores.length ? `Na ordem dos corredores de ${m.nome}` : `${m.nome} ainda não tem corredores`) : 'Lista por categoria');
-    };
+    b.onclick = () => { fecharPainel(); trocarMercado(b.dataset.mercado || null); };
   });
   $('emCadastrar').onclick = () => painelMercados();
 }
@@ -2268,6 +2346,8 @@ medirTopo();
 // ---------------------------------------------------------------- início
 montarBarra();
 desenhar();
+// Ao abrir, a lista num mercado procura o corredor do que ainda não tem (uma vez por item).
+agendarDescoberta();
 if (instalado) marcarAppUsado();
 lerLinkDoEndereco();
 lerCompartilhado();
