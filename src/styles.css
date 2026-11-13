@@ -637,3 +637,5 @@ li.item { scroll-margin-bottom: 96px; }
 .chip-mercado:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
 .aviso-corredores { text-align: left; padding: 10px 14px; border-radius: 12px; border: 1px dashed var(--linha-forte); background: transparent; color: var(--suave); font: inherit; font-size: .88rem; cursor: pointer; }
 .aviso-corredores b { color: var(--destaque-forte); }
+
+.galeria-bt { min-height: 40px; font-size: .9rem; margin-top: -2px; }

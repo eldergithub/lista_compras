@@ -1619,7 +1619,9 @@ function painelImportar(dica = '') {
     <textarea id="iTexto" placeholder="Cole aqui"></textarea>
     <button class="btn primario grande" id="iLer" type="button">Continuar</button>
     ${lerConfigIA() ? `<div class="ia-foto">
-      <button class="btn grande" id="iFoto" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Ler de uma foto</span></button>
+      <button class="btn grande" id="iFoto" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Tirar foto da lista</span></button>
+      <button class="btn discreto galeria-bt" id="iGaleria" type="button">ou escolher da galeria</button>
+      <input type="file" id="iCamera" accept="image/*" capture="environment" hidden>
       <input type="file" id="iArquivo" accept="image/*" hidden>
       <p class="cinza ia-nota">Foto de uma lista escrita à mão ou impressa. A leitura é feita por IA (teste), precisa de internet e você confere antes de entrar.</p>
     </div>` : ''}
@@ -1628,13 +1630,16 @@ function painelImportar(dica = '') {
     if (!(await receber($('iTexto').value, 'texto'))) aviso('Nenhum item encontrado');
   };
   if ($('iFoto')) {
-    $('iFoto').onclick = () => $('iArquivo').click();
-    $('iArquivo').onchange = async () => {
-      const arquivo = $('iArquivo').files?.[0];
-      $('iArquivo').value = '';
+    // Câmera direto (o seletor do Android às vezes só mostra a galeria) ou galeria.
+    $('iFoto').onclick = () => $('iCamera').click();
+    $('iGaleria').onclick = () => $('iArquivo').click();
+    const lerFotoDaLista = async (entrada) => {
+      const arquivo = entrada.files?.[0];
+      entrada.value = '';
       if (!arquivo) return;
       const bt = $('iFoto');
       bt.disabled = true;
+      $('iGaleria').disabled = true;
       bt.classList.add('lendo');
       bt.querySelector('span').textContent = 'Lendo a foto…';
       const paciencia = setTimeout(() => { if (bt.isConnected) bt.querySelector('span').textContent = 'Ainda lendo… a IA gratuita às vezes demora'; }, 12000);
@@ -1647,9 +1652,12 @@ function painelImportar(dica = '') {
         aviso(e.message || 'Não consegui ler a foto');
       } finally {
         clearTimeout(paciencia);
-        if (bt.isConnected) { bt.disabled = false; bt.classList.remove('lendo'); bt.querySelector('span').textContent = 'Ler de uma foto'; }
+        if ($('iGaleria')) $('iGaleria').disabled = false;
+        if (bt.isConnected) { bt.disabled = false; bt.classList.remove('lendo'); bt.querySelector('span').textContent = 'Tirar foto da lista'; }
       }
     };
+    $('iCamera').onchange = () => lerFotoDaLista($('iCamera'));
+    $('iArquivo').onchange = () => lerFotoDaLista($('iArquivo'));
   }
 }
 
@@ -1716,9 +1724,11 @@ function painelMercado(id) {
   abrirPainel(`<h3>${esc(m.nome)}</h3>
     <p class="cinza">${plural(m.corredores.length, 'corredor', 'corredores')}${ensinados ? ` · ${plural(ensinados, 'item ensinado', 'itens ensinados')}` : ''}</p>
     ${cfg ? `<div class="ia-foto">
-      <button class="btn primario grande" id="mcFoto" type="button">${CAMERA}<span>Fotografar placas dos corredores</span></button>
+      <button class="btn primario grande" id="mcFoto" type="button">${CAMERA}<span>Fotografar placa do corredor</span></button>
+      <button class="btn discreto galeria-bt" id="mcGaleria" type="button">ou escolher várias da galeria</button>
+      <input type="file" id="mcCamera" accept="image/*" capture="environment" hidden>
       <input type="file" id="mcArquivo" accept="image/*" multiple hidden>
-      <p class="cinza ia-nota">Pode escolher várias fotos de uma vez. A IA lê as placas e você confere antes de guardar.</p>
+      <p class="cinza ia-nota">A IA lê as placas e você confere antes de guardar. Dá para fotografar uma a uma andando pelo mercado.</p>
     </div>` : '<p class="cinza ia-nota">Com a IA ligada (Ajustes → IA), dá para ler as placas por foto. Sem ela, escreva os corredores à mão.</p>'}
     ${m.corredores.length ? `<ul class="corredores">${m.corredores.map((c) => `<li><button type="button" data-corredor="${c.id}"><b>${esc(c.nome)}</b><small>${esc([...c.cats, ...c.termos].join(', ') || 'Toque para dizer o que tem aqui')}</small></button></li>`).join('')}</ul>` : ''}
     <button class="btn" id="mcNovo" type="button">Adicionar corredor à mão</button>
@@ -1747,13 +1757,15 @@ function painelMercado(id) {
     },
   });
   if ($('mcFoto')) {
-    $('mcFoto').onclick = () => $('mcArquivo').click();
-    $('mcArquivo').onchange = async () => {
-      const arquivos = [...($('mcArquivo').files || [])].slice(0, 8);
-      $('mcArquivo').value = '';
+    $('mcFoto').onclick = () => $('mcCamera').click();
+    $('mcGaleria').onclick = () => $('mcArquivo').click();
+    const lerPlacas = async (entrada) => {
+      const arquivos = [...(entrada.files || [])].slice(0, 8);
+      entrada.value = '';
       if (!arquivos.length) return;
       const bt = $('mcFoto');
       bt.disabled = true; bt.classList.add('lendo');
+      $('mcGaleria').disabled = true;
       const lidos = [];
       try {
         for (let k = 0; k < arquivos.length; k++) {
@@ -1761,11 +1773,14 @@ function painelMercado(id) {
           try { lidos.push(...lerCorredores(await lerCorredoresDaFoto(cfg, arquivos[k], CATEGORIAS), CATEGORIAS)); } catch (e) { aviso(e.message || 'Uma foto não deu para ler'); }
         }
       } finally {
-        if (bt.isConnected) { bt.disabled = false; bt.classList.remove('lendo'); bt.querySelector('span').textContent = 'Fotografar placas dos corredores'; }
+        if (bt.isConnected) { bt.disabled = false; bt.classList.remove('lendo'); bt.querySelector('span').textContent = 'Fotografar placa do corredor'; }
+        if ($('mcGaleria')) $('mcGaleria').disabled = false;
       }
       if (!lidos.length) { aviso('Não achei placas de corredor nas fotos'); return; }
       painelConferirCorredores(m.id, juntarCorredores([], lidos));
     };
+    $('mcCamera').onchange = () => lerPlacas($('mcCamera'));
+    $('mcArquivo').onchange = () => lerPlacas($('mcArquivo'));
   }
 }
 
