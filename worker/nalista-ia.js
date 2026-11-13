@@ -7,6 +7,9 @@
  *  - usam só modelos gratuitos (terminados em ":free" ou o openrouter/free).
  * Não guarda fotos nem textos: recebe, repassa, devolve.
  *
+ * Tarefas: lista-foto (foto de lista), corredor-foto (placas de corredor),
+ * lista-texto (o que foi ditado, para separar e corrigir os itens), ping (teste).
+ *
  * Configuração no painel da Cloudflare (Settings → Variables and Secrets):
  *  - OPENROUTER_KEY   (Secret)  a chave sk-or-... do OpenRouter
  *  - CODIGO_FAMILIA   (Secret)  uma senha que a família digita uma vez no app
@@ -27,6 +30,24 @@ Regras:
 - Não invente itens. Ignore riscos, rabiscos, datas, preços e totais.
 - Item riscado na lista já foi comprado: ignore.
 - Se a foto não tiver uma lista, responda apenas: NENHUM`;
+
+const PROMPT_CORREDOR = (categorias) => `Você lê fotos de placas de corredor de supermercado no Brasil.
+Para cada corredor que aparece na foto, responda UMA linha neste formato:
+Nome do corredor | categorias | produtos
+- Nome: como está na placa ("Corredor 7", "Hortifrúti", "Padaria"). Se a placa tiver número, use "Corredor N".
+- Categorias: escolha só desta lista, separadas por ponto e vírgula: ${categorias.join('; ')}
+- Produtos: o que está escrito na placa, em minúsculas, separados por vírgula ("macarrão, molho de tomate, enlatados").
+Não invente produtos que não estão na placa. Se não houver placa legível, responda apenas: NENHUM`;
+
+const PROMPT_TEXTO = `Você recebe o que uma pessoa ditou para a lista de compras (português do Brasil), já convertido em texto pelo celular, com erros de reconhecimento de voz.
+Responda SOMENTE com os itens, um por linha, neste formato:
+- Nome — quantidade unidade (observação)
+Regras:
+- Separe os itens mesmo quando vierem grudados ("arroz feijão leite" são três itens).
+- Corrija palavras entendidas errado pelo microfone quando for óbvio pelo contexto ("feijão preto dois quilo" vira "- Feijão preto — 2 kg").
+- Unidades: un, kg, g, L, cx, pct. Números por extenso viram algarismos. Dúzia vira 12 un.
+- Ignore palavras que não são itens ("é", "também", "e mais", "anota aí", "vírgula", "próximo").
+- Não invente itens. Se não houver nenhum item, responda apenas: NENHUM`;
 
 export default {
   async fetch(req, env) {
@@ -56,8 +77,19 @@ export default {
     // Teste do app (Ajustes → IA): confirma endereço e código sem gastar a cota.
     if (corpo?.tarefa === 'ping') return responder({ ok: true });
 
-    if (corpo?.tarefa !== 'lista-foto' || typeof corpo.imagem !== 'string'
-      || !/^data:image\/(jpeg|png|webp);base64,/.test(corpo.imagem)) {
+    const imagemValida = typeof corpo?.imagem === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(corpo.imagem);
+    const comImagem = (pedido) => [{ type: 'text', text: pedido }, { type: 'image_url', image_url: { url: corpo.imagem } }];
+    let mensagens;
+    if (corpo?.tarefa === 'lista-foto' && imagemValida) {
+      mensagens = [{ role: 'system', content: PROMPT_FOTO }, { role: 'user', content: comImagem('Transcreva a lista de compras desta foto.') }];
+    } else if (corpo?.tarefa === 'corredor-foto' && imagemValida) {
+      const categorias = (Array.isArray(corpo.categorias) ? corpo.categorias : [])
+        .filter((c) => typeof c === 'string' && c.length <= 40).slice(0, 30);
+      if (!categorias.length) return responder({ erro: 'Pedido inválido.' }, 400);
+      mensagens = [{ role: 'system', content: PROMPT_CORREDOR(categorias) }, { role: 'user', content: comImagem('Leia as placas de corredor desta foto.') }];
+    } else if (corpo?.tarefa === 'lista-texto' && typeof corpo.texto === 'string' && corpo.texto.trim() && corpo.texto.length <= 4000) {
+      mensagens = [{ role: 'system', content: PROMPT_TEXTO }, { role: 'user', content: corpo.texto }];
+    } else {
       return responder({ erro: 'Pedido inválido.' }, 400);
     }
 
@@ -80,13 +112,7 @@ export default {
             model: modelo,
             temperature: 0.1,
             max_tokens: 2000,
-            messages: [
-              { role: 'system', content: PROMPT_FOTO },
-              { role: 'user', content: [
-                { type: 'text', text: 'Transcreva a lista de compras desta foto.' },
-                { type: 'image_url', image_url: { url: corpo.imagem } },
-              ] },
-            ],
+            messages: mensagens,
           }),
         });
         const dados = await r.json().catch(() => ({}));

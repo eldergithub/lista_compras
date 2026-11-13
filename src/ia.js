@@ -73,3 +73,16 @@ export async function lerListaDaFoto(cfg, arquivo) {
   const { texto } = await chamar(cfg, { tarefa: 'lista-foto', imagem });
   return /^\s*NENHUM\s*$/i.test(texto || '') ? '' : (texto || '');
 }
+
+/** Lê as placas de corredor de uma foto: uma linha por corredor ("Nome | categorias | produtos"). */
+export async function lerCorredoresDaFoto(cfg, arquivo, categorias) {
+  const imagem = await prepararFoto(arquivo);
+  const { texto } = await chamar(cfg, { tarefa: 'corredor-foto', imagem, categorias });
+  return /^\s*NENHUM\s*$/i.test(texto || '') ? '' : (texto || '');
+}
+
+/** Organiza o que foi ditado: separa os itens e corrige o que o microfone entendeu errado. */
+export async function organizarDitado(cfg, texto) {
+  const { texto: saida } = await chamar(cfg, { tarefa: 'lista-texto', texto: String(texto).slice(0, 4000) }, 60000);
+  return /^\s*NENHUM\s*$/i.test(saida || '') ? '' : (saida || '');
+}

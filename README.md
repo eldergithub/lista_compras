@@ -45,3 +45,15 @@ Cada `git push` no `main` roda os testes e publica no GitHub Pages (`.github/wor
 Para ativar uma vez: Settings → Pages → Source: **GitHub Actions**.
 
 Ícones PNG e a imagem de prévia do link (`public/og.png`): `node tools/gen-icons.mjs` (usa o Playwright instalado na máquina).
+
+## IA (teste) e supermercados
+
+Funções com IA (precisam de internet e da IA ligada em **Ajustes → IA (teste)**):
+
+- **Importar → Ler de uma foto:** lista escrita à mão ou impressa vira itens, com conferência antes de entrar.
+- **Ditado → Arrumar com IA:** a IA relê o que foi falado, separa itens grudados e corrige o que o microfone entendeu errado.
+- **Supermercados → Fotografar placas dos corredores:** a IA lê as placas e monta o mapa do mercado.
+
+**Supermercados** (Ajustes) guarda cada mercado com seus corredores. A lista ligada a um mercado aparece na ordem dos corredores; no detalhe do item dá para dizer em que corredor ele fica, e o app aprende. Funciona sem IA também, cadastrando os corredores à mão.
+
+A IA passa por um "porteiro" na Cloudflare (`worker/nalista-ia.js`), que guarda a chave do OpenRouter e só usa modelos gratuitos. O app não guarda chave nenhuma.
