@@ -19,8 +19,9 @@
  */
 
 const ORIGENS_PADRAO = 'https://eldergithub.github.io';
-// Primeiro um modelo direto de leitura de documentos (rápido); os outros são reserva.
-const MODELOS_PADRAO = 'nvidia/nemotron-nano-12b-v2-vl:free,nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,openrouter/free';
+// O Omni (30B) lê letra de mão bem melhor; com o raciocínio desligado, fica rápido.
+// O 12B (mais rápido, menos preciso) e o roteador gratuito são reserva.
+const MODELOS_PADRAO = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,nvidia/nemotron-nano-12b-v2-vl:free,openrouter/free';
 const TEMPO_POR_MODELO = 30000; // modelo gratuito em fila: desiste e tenta o próximo
 const TAMANHO_MAXIMO = 6_000_000; // ~6 MB: a foto já chega reduzida pelo app
 
