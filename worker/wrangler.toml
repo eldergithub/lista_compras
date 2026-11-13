@@ -1,0 +1,8 @@
+# Configuração do porteiro (Cloudflare Worker) para a publicação automática.
+# Os segredos (OPENROUTER_KEY, CODIGO_FAMILIA) ficam só na Cloudflare: não vão aqui.
+name = "nalista-ia"
+main = "nalista-ia.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+# Mantém as variáveis criadas no painel (como MODELOS) a cada publicação.
+keep_vars = true
