@@ -70,9 +70,14 @@ export async function prepararFoto(arquivo, lado = 1600) {
 /** Lê uma foto de lista: devolve o texto, um item por linha (ou '' se não achou lista). */
 export async function lerListaDaFoto(cfg, arquivo) {
   const imagem = await prepararFoto(arquivo);
-  const { texto } = await chamar(cfg, { tarefa: 'lista-foto', imagem });
+  const inicio = Date.now();
+  const { texto, modelo } = await chamar(cfg, { tarefa: 'lista-foto', imagem });
+  ultimaLeitura = { modelo: String(modelo || '').split('/').pop().replace(/:free$/, ''), segundos: Math.round((Date.now() - inicio) / 1000) };
   return /^\s*NENHUM\s*$/i.test(texto || '') ? '' : (texto || '');
 }
+
+/** Qual modelo leu a última foto e em quanto tempo (para comparar nos testes). */
+export let ultimaLeitura = null;
 
 /** Lê as placas de corredor de uma foto: uma linha por corredor ("Nome | categorias | produtos"). */
 export async function lerCorredoresDaFoto(cfg, arquivo, categorias) {
