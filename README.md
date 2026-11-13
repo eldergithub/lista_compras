@@ -57,3 +57,5 @@ Funções com IA (precisam de internet e da IA ligada em **Ajustes → IA (teste
 **Supermercados** (Ajustes) guarda cada mercado com seus corredores. A lista ligada a um mercado aparece na ordem dos corredores; no detalhe do item dá para dizer em que corredor ele fica, e o app aprende. Funciona sem IA também, cadastrando os corredores à mão.
 
 A IA passa por um "porteiro" na Cloudflare (`worker/nalista-ia.js`), que guarda a chave do OpenRouter e só usa modelos gratuitos. O app não guarda chave nenhuma.
+
+O porteiro se publica sozinho: quando `worker/` muda na `main`, o workflow `porteiro.yml` envia o código para a Cloudflare (precisa dos segredos `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID` no repositório).
