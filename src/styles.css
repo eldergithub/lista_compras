@@ -583,3 +583,12 @@ li.item { scroll-margin-bottom: 96px; }
 .fim-nota { margin: 0; color: var(--suave); font-size: .85rem; text-align: center; }
 .fim-nota b { color: var(--texto); }
 .limpar { margin-top: 22px; }
+
+/* IA (teste): ler lista de uma foto */
+.ia-foto { display: grid; gap: 6px; }
+.ia-foto .btn { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.ia-foto .btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ia-foto .btn.lendo { opacity: .75; }
+.ia-foto .btn.lendo svg { animation: iaPulsa 1s ease-in-out infinite alternate; }
+@keyframes iaPulsa { from { opacity: .35; } to { opacity: 1; } }
+.ia-nota { margin: 0; font-size: .85rem; }

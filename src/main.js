@@ -10,6 +10,7 @@ import {
   criarItem, semDuzia, formatarNumero, formatarQtd, categoriasEmUso, juntar, adicionarItens, LISTA_INICIAL,
 } from './core/lista.js';
 import { paraTexto, lerTexto, lerEntrada, separarItens, lerPedaco } from './core/texto.js';
+import { lerConfigIA, salvarConfigIA, normalizarUrl, testarIA, lerListaDaFoto } from './ia.js';
 import { montarLink, montarLinkDeComplemento, decodificarLista, codigoDoEndereco, codigoDeRetorno, codigoDeComplemento, montarLinkDeRetorno } from './core/link.js';
 import { complementar, novosDesdeOEnvio, marcarComoEnviados, textoDoComplemento, listaDoTextoDeComplemento } from './core/complemento.js';
 import { criarLista, migrar, listaAtiva, nomeLivre, listasPorUso, listaDoComplemento, ligar, listaEmCompra } from './core/listas.js';
@@ -965,6 +966,7 @@ const ICONE = {
   compras: '<path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/>',
   sugestoes: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/>',
   backup: '<path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.6 1.5A3.8 3.8 0 0 1 17.5 18z"/><path d="M12 11v6M9.5 13.5L12 11l2.5 2.5"/>',
+  ia: '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
   ajuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/>',
 };
 const icone = (n) => `<svg class="icone-op" viewBox="0 0 24 24" aria-hidden="true">${ICONE[n]}</svg>`;
@@ -991,6 +993,7 @@ function painelMais() {
     <ul class="listas menu">
       ${opcao('mSugestoes', 'sugestoes', 'Sugestões', 'Tirar o que aparece sem fazer sentido')}
       ${opcao('mBackup', 'backup', 'Backup', 'Guardar tudo num arquivo ou levar para outro celular')}
+      ${opcao('mIA', 'ia', 'IA (teste)', lerConfigIA() ? 'Ligada: ler listas por foto' : 'Ler listas por foto')}
       ${opcao('mDica', 'ajuda', 'Fazer o tour', 'Mostra o que cada parte do app faz')}
     </ul>
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
@@ -1025,6 +1028,7 @@ function painelMais() {
     });
   }
   $('mBackup').onclick = painelBackup;
+  $('mIA').onclick = painelIA;
   $('mSugestoes').onclick = () => painelSugestoes();
   $('mDica').onclick = () => comecarTour();
 }
@@ -1468,10 +1472,67 @@ function painelImportar(dica = '') {
     <p>${dica ? esc(dica) : 'Cole o link ou o texto que você recebeu, da lista ou do retorno da compra. Também serve uma lista simples, um item por linha ou separada por vírgula.'}</p>
     <textarea id="iTexto" placeholder="Cole aqui"></textarea>
     <button class="btn primario grande" id="iLer" type="button">Continuar</button>
+    ${lerConfigIA() ? `<div class="ia-foto">
+      <button class="btn grande" id="iFoto" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Ler de uma foto</span></button>
+      <input type="file" id="iArquivo" accept="image/*" hidden>
+      <p class="cinza ia-nota">Foto de uma lista escrita à mão ou impressa. A leitura é feita por IA (teste), precisa de internet e você confere antes de entrar.</p>
+    </div>` : ''}
     <button class="btn discreto" data-fechar type="button">Fechar</button>`);
   $('iLer').onclick = async () => {
     if (!(await receber($('iTexto').value, 'texto'))) aviso('Nenhum item encontrado');
   };
+  if ($('iFoto')) {
+    $('iFoto').onclick = () => $('iArquivo').click();
+    $('iArquivo').onchange = async () => {
+      const arquivo = $('iArquivo').files?.[0];
+      $('iArquivo').value = '';
+      if (!arquivo) return;
+      const bt = $('iFoto');
+      bt.disabled = true;
+      bt.classList.add('lendo');
+      bt.querySelector('span').textContent = 'Lendo a foto…';
+      try {
+        const texto = await lerListaDaFoto(lerConfigIA(), arquivo);
+        const novos = texto ? lerTexto(texto) : [];
+        if (!novos.length) { aviso('Não achei uma lista nessa foto'); return; }
+        painelRecebida(novos, 'foto', null);
+      } catch (e) {
+        aviso(e.message || 'Não consegui ler a foto');
+      } finally {
+        if (bt.isConnected) { bt.disabled = false; bt.classList.remove('lendo'); bt.querySelector('span').textContent = 'Ler de uma foto'; }
+      }
+    };
+  }
+}
+
+/** Ajustes → IA (teste): endereço do porteiro e código da família. */
+function painelIA() {
+  const cfg = lerConfigIA() || { url: '', codigo: '' };
+  abrirPainel(`<h3>IA (teste)</h3>
+    <p>Liga a leitura de listas por foto em <b>Importar</b>. Precisa do endereço do seu porteiro na Cloudflare e do código da família.</p>
+    <label class="campo">Endereço do porteiro<input class="texto" id="iaUrl" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="nalista-ia.seunome.workers.dev" value="${esc(cfg.url)}"></label>
+    <label class="campo">Código da família<input class="texto" id="iaCodigo" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(cfg.codigo)}"></label>
+    <p class="cinza" id="iaStatus" role="status"></p>
+    <button class="btn primario grande" id="iaSalvar" type="button">Testar e salvar</button>
+    ${lerConfigIA() ? '<button class="btn" id="iaDesligar" type="button">Desligar a IA</button>' : ''}
+    <button class="btn discreto" data-fechar type="button">Fechar</button>`);
+  $('iaSalvar').onclick = async () => {
+    const novo = { url: normalizarUrl($('iaUrl').value), codigo: $('iaCodigo').value.trim() };
+    if (!novo.url || !novo.codigo) { $('iaStatus').textContent = 'Preencha o endereço e o código.'; return; }
+    $('iaSalvar').disabled = true;
+    $('iaStatus').textContent = 'Testando…';
+    try {
+      await testarIA(novo);
+      salvarConfigIA(novo);
+      fecharPainel();
+      aviso('IA ligada: use Importar → Ler de uma foto');
+    } catch (e) {
+      $('iaStatus').textContent = e.message || 'Não deu certo.';
+    } finally {
+      if ($('iaSalvar')) $('iaSalvar').disabled = false;
+    }
+  };
+  if ($('iaDesligar')) $('iaDesligar').onclick = () => { salvarConfigIA(null); fecharPainel(); aviso('IA desligada'); };
 }
 
 const temCodigo = (hash) => !!(codigoDoEndereco(hash) || codigoDeRetorno(hash) || codigoDeComplemento(hash));
